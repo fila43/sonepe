@@ -41,7 +41,8 @@ class Constants:
         "Chcete kontrolovat označení, která lidé přidají do vašich příspěvků, než se tato označení objeví na Facebooku?":"Review tags that people add to your posts before the tags appear on Facebook?",
         "Povolit ostatním sdílet veřejné příběhy ve vlastním příběhu?":"Allow others to share your public stories to their own story?",
         "Umožnit sdílení vašich příběhů lidem, které zmíníte?":"Allow people to share your stories if you mention them?",
-        "Zapnout historii polohy v mobilním zařízení?":"Turn on Location History for your mobile devices?"
+        "Zapnout historii polohy v mobilním zařízení?":"Turn on Location History for your mobile devices?",
+        "Jenom já":"Only me"
 
     }
     Evaluation = {
@@ -55,6 +56,7 @@ class Constants:
             "Don't allow":0,
             "Yes":1,
             "No":0,
+            "Only me":0
 
             }
     FacebookWeights = {
@@ -87,6 +89,15 @@ class Constants:
     @staticmethod
     def is_english(word):
         return word == Constants.ENGLISH
+    
+    @staticmethod
+    def get_profil():
+        return Constants.FacebookWeights
+               
+
+    @staticmethod
+    def get_evaluation():
+        return Constants.Evaluation
 
 class Model:
     def __init__(self,ext_data,profil,evaluation_array):
@@ -103,24 +114,59 @@ class Model:
 
 class Weight_visibility_model(Model):
     def __init__(self,ext_data,profil,evaluation_array):
-        super.__init(ext_data,profil,evaluation_array)
+        super().__init__(ext_data,profil,evaluation_array)
 
     def evaluate(self,operator):
         result = 0
-        for key, value in self._ex_data:
+        for key, value in self._ex_data.items():
             result = result + operator(self._profil[key], self._eval_array[value])
         return result
             
 
 
+class Evaluator:
+    def __init__(self,model,data):
+        self._account_settings = data
+        self._model = model
+
+    def apply_model(self):
+        pass
+
+    def change_model(self,new_model):
+        self._model = new_model
+
+    def advise_settings():
+        pass
+
+class Extractor:
+    def __init__(self):
+        """acc dict contains all set up accounts for test"""
+        self._acc = {}
+
+    def add_social_network(self,name,username,password):
+            if name ==  "facebook":
+                self._acc[name] = FacebookLogin()
+                self._acc[name].login(username,password)
+                self._acc[name].parse()
+            
+    
+    def run(self):
+        for key, item in self._acc.items():
+            if not Constants.is_english(item.get_language()):
+                yield self.translate(item.get_data()),key
+            else:
+                yield item.get_data(),key
+                
+    def translate(self,data):
+        pass
 
 class LoginHandle:
-    def __init__(self, name, passwd):
-        self.name = name
-        self.passwd = passwd
+    def __init__(self):
         self._data = dict()
 
-    def login(self):
+    def login(self,name,passwd):
+        self.name = name
+        self.passwd = passwd
         pass
 
     def parse(self):
@@ -138,8 +184,8 @@ class LoginHandle:
 class FacebookLogin(LoginHandle):
 
 
-    def __init__(self, name, passwd):
-        super().__init__(name, passwd)
+    def __init__(self):
+        super().__init__()
         self.__language = "https://www.facebook.com/settings?tab=language"
         self.__endpoints = [
             "https://www.facebook.com/settings?tab=privacy",
@@ -154,8 +200,13 @@ class FacebookLogin(LoginHandle):
         self.__session.headers.update({
             'User-Agent': 'Mozilla/5.0 (X11; Linux i686; rv:39.0) Gecko/20100101 Firefox/39.0'
         })
+        self._language = None
 
-    def login(self):
+    def get_language(self):
+        return self._language
+
+    def login(self,name,passwd):
+        super().login(name,passwd)
         self.__session.get('https://m.facebook.com')
         response = self.__session.post('https://m.facebook.com/login.php', data={
             'email': "fitvut@seznam.cz",
@@ -177,7 +228,7 @@ class FacebookLogin(LoginHandle):
         #print(item.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nll").string, end=" : ")
 
         # language is first item
-        language = settings[0].find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nlm fwb").string
+        self._language = settings[0].find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nlm fwb").string
         result = {}
 
         for item in self.__endpoints:
@@ -186,8 +237,13 @@ class FacebookLogin(LoginHandle):
       #      result[soup.find("span", class_="_c24")] = None
             settings = soup.findAll("a", class_="fbSettingsListLink clearfix pvm phs")
             for x in settings:
-                result[x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nll").string] = \
-                x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nlm fwb").string
+                #sometimes is shown help and change structure
+                if x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nll").string is None:
+                    index = list(x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nll").stripped_strings)[0]
+                else:
+                    index = x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nll").string
+
+                result[index] = x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nlm fwb").string
 
         # page with location has different structure then others
         #data = self.__session.get(self._location_endpoint).text
@@ -284,7 +340,17 @@ class TwitterLogin(LoginHandle):
 
 
 if __name__ == '__main__':
-    test = FacebookLogin("y","y")
-    test.login()
-    test.parse()
-    test.store_data("facebook_data.json")
+   # test = FacebookLogin()
+    #test.login("y","Y")
+    #test.parse()
+    #test.store_data("facebook_data.json")
+
+    #test = LoginHandle()
+    #test.load_data("facebook_data.json")
+    
+   # print(test.get_data())
+    ext = Extractor()
+    ext.add_social_network("facebook","jmeno","heslo")
+    data = list(ext.run())
+    mymodel = Weight_visibility_model(data[0][0],Constants.get_profil(),Constants.get_evaluation())
+    print (mymodel.evaluate(operator.mul))
