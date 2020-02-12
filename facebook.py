@@ -3,9 +3,13 @@ from bs4 import BeautifulSoup
 import urllib.parse
 import json
 import operator
+import collections 
 
 class LoginError(Exception):
     """Raised when failed login into Social network """
+    pass
+
+class MissingDataError(Exception):
     pass
 
 class Constants:
@@ -79,11 +83,11 @@ class Constants:
             "Turn on Location History for your mobile devices?":0.8
             }
     @staticmethod
-    def cz_to_en_translate(self,word):
-        return self.CzEnDict[word]
+    def cz_to_en_translate(word):
+        return Constants.CzEnDict[word]
 
     @staticmethod
-    def en_to_cz_translate(self,world):
+    def en_to_cz_translate(world):
         pass
 
     @staticmethod
@@ -100,10 +104,16 @@ class Constants:
         return Constants.Evaluation
 
 class Model:
-    def __init__(self,ext_data,profil,evaluation_array):
+    def __init__(self,ext_data=None,profil=None,evaluation_array=None):
         self._ex_data = ext_data
         self._profil = profil
         self._eval_array = evaluation_array
+    
+    def update_data(self,data):
+        self._ex_data = data
+
+    def update_evaluation(self,e):
+        self._eval_array = e
 
     def evaluate(self):
         pass
@@ -113,10 +123,13 @@ class Model:
         self._profil = profil
 
 class Weight_visibility_model(Model):
-    def __init__(self,ext_data,profil,evaluation_array):
+    def __init__(self,ext_data = None , profil = None , evaluation_array = None):
         super().__init__(ext_data,profil,evaluation_array)
 
     def evaluate(self,operator):
+        if self._ex_data is None or self._profil is None or self._eval_array is None:
+            return -1
+        
         result = 0
         for key, value in self._ex_data.items():
             result = result + operator(self._profil[key], self._eval_array[value])
@@ -125,32 +138,49 @@ class Weight_visibility_model(Model):
 
 
 class Evaluator:
-    def __init__(self,model,data):
-        self._account_settings = data
+    def __init__(self,model,data,weights,evaluation):
         self._model = model
+        self._weights = weights
+        self._evaluation = evaluation
+        self._data = data
+
+        model.update_data(data)
+        model.update_evaluation(evaluation)
+        model.update_profil(weights)
 
     def apply_model(self):
-        pass
+        return self._model.evaluate(operator.mul) #operator only for easy model
 
     def change_model(self,new_model):
         self._model = new_model
+        self._model.update_data(self._data)
+        self._model.update_evaluation(self._evaluation) 
+        self._model.update_profil(self._weights)
 
-    def advise_settings():
-        pass
+    def advise_settings(self):
+        for key,value in collections.OrderedDict(sorted(Constants.FacebookWeights.items(), key=lambda x: x[1], reverse=True)).items():
+            if Constants.get_evaluation()[self._data[key]] >= 1:
+                yield key
+
 
 class Extractor:
     def __init__(self):
         """acc dict contains all set up accounts for test"""
         self._acc = {}
 
-    def add_social_network(self,name,username,password):
-            if name ==  "facebook":
+    def add_social_network(self,name = None ,username = None,password = None,file_name = None):
+        if name ==  "facebook":
+            if file_name is None:
                 self._acc[name] = FacebookLogin()
                 self._acc[name].login(username,password)
                 self._acc[name].parse()
+            else:
+                self._acc[name] = LoginHandle()
+                self._acc[name].load_data(file_name)
             
     
     def run(self):
+        """ need to be translate to english - models work with english, every call return one social network"""
         for key, item in self._acc.items():
             if not Constants.is_english(item.get_language()):
                 yield self.translate(item.get_data()),key
@@ -158,11 +188,19 @@ class Extractor:
                 yield item.get_data(),key
                 
     def translate(self,data):
-        pass
+        result = {}
+        for key, value in data.items():
+            result[Constants.cz_to_en_translate(key)] = Constants.cz_to_en_translate(value)
+
+        return result
 
 class LoginHandle:
     def __init__(self):
         self._data = dict()
+        self._language = Constants.ENGLISH
+
+    def get_language(self):
+        return self._language
 
     def login(self,name,passwd):
         self.name = name
@@ -349,8 +387,28 @@ if __name__ == '__main__':
     #test.load_data("facebook_data.json")
     
    # print(test.get_data())
-    ext = Extractor()
-    ext.add_social_network("facebook","jmeno","heslo")
-    data = list(ext.run())
-    mymodel = Weight_visibility_model(data[0][0],Constants.get_profil(),Constants.get_evaluation())
-    print (mymodel.evaluate(operator.mul))
+
+    #ext = Extractor()
+    #ext.add_social_network("facebook","jmeno","heslo")
+    #data = list(ext.run())
+    #mymodel = Weight_visibility_model(data[0][0],Constants.get_profil(),Constants.get_evaluation())
+    #print (mymodel.evaluate(operator.mul))
+
+    myExtractor = Extractor()
+    myExtractor.add_social_network(name = "facebook",file_name="facebook_data.json")
+   # myExtractor.add_social_network(name = "facebook",username="test",password="test")
+    extractor_data = list(myExtractor.run())[0][0]
+    
+    myEvaluator = Evaluator(Weight_visibility_model(),extractor_data,Constants.get_profil(),Constants.get_evaluation())
+    print(myEvaluator.apply_model())
+    my_gen = myEvaluator.advise_settings()
+    
+    print(next(my_gen))
+    #print(next(my_gen))
+   # print(next(my_gen))
+
+    #for key,value in Constants.FacebookWeights.items():
+    #    print (key+":"+str(value))
+    #print("--------------------------------")
+
+    #for key,value in collections.OrderedDict(sorted(Constants.FacebookWeights.items(), key=lambda x: x[1], reverse=True)).items():
