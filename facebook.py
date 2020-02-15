@@ -1,9 +1,18 @@
+from selenium.common.exceptions import NoSuchElementException
 import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 import json
 import operator
 import collections 
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
+import time
+import re
 
 class LoginError(Exception):
     """Raised when failed login into Social network """
@@ -135,6 +144,49 @@ class Weight_visibility_model(Model):
             result = result + operator(self._profil[key], self._eval_array[value])
         return result
             
+class PIDX(Model):
+    def __init__(self, data = None, pif = None, separation = None):
+        pass
+
+    def configuration_impact(self):
+        #TODO st*pjt for each 
+        pass
+
+    def visibility(self):
+        """ TODO need to define visibility function g <0,1>"""
+        pass
+
+    def privacy_function(self):
+        #TODO privacy function f = w(i,j)
+        pass
+
+    def evaluate(self):
+        # TODO PIDX = w(i,j)/w(i,i)*100 
+        pass
+
+class W_PIDX(PIDX):
+    def __init__(self, data = None, pif = None, separation = None):
+        super().__init__(data = data, pif = pif, separation = separation)
+        
+    def privacy_function(self):
+        pass
+
+class M_PIDX(PIDX):
+    def __init__(self, data = None, pif = None, separation = None):
+        super().__init__(data = data, pif = pif, separation = separation)
+
+    def evaluate(self):
+        #TODO maximum function
+        pass
+
+class C_PIDX(W_PIDX,M_PIDX):
+    def __init__(self, data = None, pif = None, separation = None):
+        super(W_PIDX, self).__init__(data = data, pif = pif, separation = separation)
+
+    def evaluate(self):
+        # TODO only build C-pidx from M-pidx and w-pidx
+        pass
+
 
 
 class Evaluator:
@@ -296,8 +348,56 @@ class FacebookLogin(LoginHandle):
 
 class TwitterLogin(LoginHandle):
 
-    def __init__(self, name, passwd):
-        super().__init__(name, passwd)
+    def __init__(self):
+        super().__init__()
+        self._url = "http://www.twitter.com"
+        self._redirect_delay = 5
+        self._driver = webdriver.Firefox() #TODO need to be setup gecko
+        self._endpoint = "https://twitter.com/settings/account"
+
+    def login(self,name,passwd):
+        self._driver.get(self._url)
+        try:
+            myElem = WebDriverWait(self._driver, self._redirect_delay).until(EC.presence_of_element_located((By.NAME, 'session[username_or_email]')))
+        except TimeoutException:
+            print ("Loading took too much time!")
+            #TODO try load again? or exit? increase delay value? 
+        try:
+            name_input = self._driver.find_element_by_name("session[username_or_email]")
+            name_input.clear()
+            name_input.send_keys("ikariamforest@gmail.com")
+
+            passwd_input = self._driver.find_element_by_name("session[password]")
+            passwd_input.clear()
+            passwd_input.send_keys("diplomka2019")
+            
+            login_form = self._driver.find_element_by_xpath("//form[@class='r-13qz1uu']")
+            login_form.submit()
+            
+       
+        except NoSuchElementException:
+            print("cant find input") #Load error or page was changed
+            exit(0)
+        
+    def get_page(self,url):
+       time.sleep(self._redirect_delay) #TODO test if it enough.... and try again? 
+       return self._driver.get(url)
+
+    def parse(self):
+        self.get_page(self._endpoint)
+        #time.sleep(5)
+        data = self._driver.page_source
+        regex = r"\"remote\":{\"settings\":.*;"
+        re.finditer(regex, test_str, re.MULTILINE)
+        
+
+
+
+
+
+
+    def __init1__(self):
+        super().__init__()
         proxies = {"http": "http://127.0.0.1:8080", "https": "http://127.0.0.1:8080"}
 
         username = "fila.konemet@gmail.com"
@@ -378,9 +478,9 @@ class TwitterLogin(LoginHandle):
 
 
 if __name__ == '__main__':
-   # test = FacebookLogin()
-    #test.login("y","Y")
-    #test.parse()
+    test = TwitterLogin()
+    test.login("y","Y")
+    test.parse()
     #test.store_data("facebook_data.json")
 
     #test = LoginHandle()
@@ -394,16 +494,16 @@ if __name__ == '__main__':
     #mymodel = Weight_visibility_model(data[0][0],Constants.get_profil(),Constants.get_evaluation())
     #print (mymodel.evaluate(operator.mul))
 
-    myExtractor = Extractor()
-    myExtractor.add_social_network(name = "facebook",file_name="facebook_data.json")
+    #myExtractor = Extractor()
+    #myExtractor.add_social_network(name = "facebook",file_name="facebook_data.json")
    # myExtractor.add_social_network(name = "facebook",username="test",password="test")
-    extractor_data = list(myExtractor.run())[0][0]
+    #extractor_data = list(myExtractor.run())[0][0]
     
-    myEvaluator = Evaluator(Weight_visibility_model(),extractor_data,Constants.get_profil(),Constants.get_evaluation())
-    print(myEvaluator.apply_model())
-    my_gen = myEvaluator.advise_settings()
+    #myEvaluator = Evaluator(Weight_visibility_model(),extractor_data,Constants.get_profil(),Constants.get_evaluation())
+    #print(myEvaluator.apply_model())
+    #my_gen = myEvaluator.advise_settings()
     
-    print(next(my_gen))
+    #print(next(my_gen))
     #print(next(my_gen))
    # print(next(my_gen))
 
