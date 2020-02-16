@@ -91,6 +91,22 @@ class Constants:
             "Allow people to share your stories if you mention them?":0.5,
             "Turn on Location History for your mobile devices?":0.8
             }
+    TwitterWeights = {
+            "protected": 0.25, # 1FB
+            "geo_enabled": 0.8, #17FB
+            "discoverable_by_email": 0.60, #4FB
+            "discoverable_by_mobile_phone": 0.70, #5FB
+            "allow_media_tagging": 0.45 #11FB
+    }
+
+    TwitterEvaluation = {
+        "false":0,
+        "true":1,
+        "all":1.3,
+        "none":0,
+        "following":1
+    }
+
     @staticmethod
     def cz_to_en_translate(word):
         return Constants.CzEnDict[word]
@@ -104,12 +120,12 @@ class Constants:
         return word == Constants.ENGLISH
     
     @staticmethod
-    def get_profil():
+    def get_facebook_profil():
         return Constants.FacebookWeights
                
 
     @staticmethod
-    def get_evaluation():
+    def get_facebook_evaluation():
         return Constants.Evaluation
 
 class Model:
@@ -211,7 +227,7 @@ class Evaluator:
 
     def advise_settings(self):
         for key,value in collections.OrderedDict(sorted(Constants.FacebookWeights.items(), key=lambda x: x[1], reverse=True)).items():
-            if Constants.get_evaluation()[self._data[key]] >= 1:
+            if Constants.get_facebook_evaluation()[self._data[key]] >= 1:
                 yield key
 
 
@@ -387,13 +403,11 @@ class TwitterLogin(LoginHandle):
         self.get_page(self._endpoint)
         #time.sleep(5)
         data = self._driver.page_source
-        regex = r"\"remote\":{\"settings\":.*;"
-        re.finditer(regex, test_str, re.MULTILINE)
+        regex = r"\"remote\":{\"settings\":.*\"fetchStatus\":\"loaded\"}"
+        c_regex = re.compile(regex)
+        data = c_regex.findall( data)
+        self._data = json.loads(data[0][9:])["settings"]
         
-
-
-
-
 
 
     def __init1__(self):
@@ -481,7 +495,7 @@ if __name__ == '__main__':
     test = TwitterLogin()
     test.login("y","Y")
     test.parse()
-    #test.store_data("facebook_data.json")
+    test.store_data("twitter_data.json")
 
     #test = LoginHandle()
     #test.load_data("facebook_data.json")
@@ -499,7 +513,7 @@ if __name__ == '__main__':
    # myExtractor.add_social_network(name = "facebook",username="test",password="test")
     #extractor_data = list(myExtractor.run())[0][0]
     
-    #myEvaluator = Evaluator(Weight_visibility_model(),extractor_data,Constants.get_profil(),Constants.get_evaluation())
+    #myEvaluator = Evaluator(Weight_visibility_model(),extractor_data,Constants.get_facebook_profil(),Constants.get_facebook_evaluation())
     #print(myEvaluator.apply_model())
     #my_gen = myEvaluator.advise_settings()
     
