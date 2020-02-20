@@ -107,6 +107,42 @@ class Constants:
         "following":1
     }
 
+    LinkedInEvaluation = {
+        "EVERYONE":1.3,
+        "True":1,
+        "False":0,
+        "FIRST_DEGREE_CONNECTIONS":1.15,
+        "HIDE":0,# need to check 
+        "DISCLOSE_FULL":1.15, # need to check
+        "DISCLOSE_ANONYMOUS":1, # need to check
+        "JUST_ME":0,
+        "FIRST_DEGREE_CONNECTIONS":1,
+        "SECOND_DEGREE_CONNECTIONS":1.15,
+        "EVERYONE":1.3,
+        "CONNECTIONS":1,
+        "LINKEDIN_USER":1.3,
+        "HIDDEN":0,
+        "true":1,
+        "false":0,
+        True:1,
+        False:0
+        }
+    LinkedInWeights = {
+        "privacy/email":0.65,
+        "connections-visibility":0.60,
+        "show-full-last-name":0.50, # prijmeni ?? ve spojeni s praci ....
+        "meet-the-team":0.4, # zobrazeni profilu u zamestnavatelu
+        "data-sharing":0.5,
+        "profile-visibility":0.5, # jak jsem videt mezi lidmi co si zobrazili profil
+        "presence":0.05, # jsem online??
+        "activity-broadcast":0.4,# oznamovat me zmeny v síti kontaktu
+        "mentions":0.45, # oznacovani
+        "visibility/email":0.65,
+        "visibility/phone":0.70,
+        }
+
+
+
     @staticmethod
     def cz_to_en_translate(word):
         return Constants.CzEnDict[word]
@@ -409,93 +445,121 @@ class TwitterLogin(LoginHandle):
         self._data = json.loads(data[0][9:])["settings"]
         
 
-
-    def __init1__(self):
+class LinkedInLogin(LoginHandle):
+    
+    def __init__(self):
         super().__init__()
-        proxies = {"http": "http://127.0.0.1:8080", "https": "http://127.0.0.1:8080"}
-
-        username = "fila.konemet@gmail.com"
-        password = "P5pv71ja&"
-        # login url
-        post = "https://twitter.com/sessions"
-        url = "https://twitter.com"
-        url_mobile = "https://mobile.twitter.com"
-
-        data = {"session[username_or_email]": username,
-                "session[password]": password,
-                "redirect_after_login": "/",
-                "remember_me": 1,
-                "wfa":1}
-
-        s = requests.Session()
-        s.headers.update({
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Connection': 'close',
-            "Accept-Language": "en-GB,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate",
-            'Upgrade-insecure-requests': '1',
-            "User-Agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:69.0) Gecko/20100101 Firefox/69.0",
-            "DNT": "1"
+        self._url = "https://www.linkedin.com"
+        self._login = "https://www.linkedin.com/uas/login-submit"
+        self.__session = requests.Session()
+        self.__session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (X11; Linux i686; rv:39.0) Gecko/20100101 Firefox/39.0'
         })
+        self._endpoints = [
+            "https://www.linkedin.com/psettings/privacy/email",
+            "https://www.linkedin.com/psettings/connections-visibility",
+            "https://www.linkedin.com/psettings/show-full-last-name",
+            "https://www.linkedin.com/psettings/meet-the-team",
+            "https://www.linkedin.com/psettings/data-sharing",
+            "https://www.linkedin.com/psettings/profile-visibility",
+            "https://www.linkedin.com/psettings/presence",
+            "https://www.linkedin.com/psettings/activity-broadcast",
+            "https://www.linkedin.com/psettings/mentions",
+            "https://www.linkedin.com/psettings/visibility/email",
+            "https://www.linkedin.com/psettings/visibility/phone",
+           # "https://www.linkedin.com/psettings/ingested-data-profile-match" impact??
+        ]
+ 
+    def login(self,name,passwd):
+        HOMEPAGE_URL = 'https://www.linkedin.com'
+        LOGIN_URL = 'https://www.linkedin.com/uas/login-submit'
 
-        r = s.get(url,proxies=proxies, verify=False)
-        #print(s.cookies)
-        
-        s.headers.update({
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Referer":"https://twitter.com/"
-            })
-        r = s.post(url_mobile+"/i/nojs_router?path=/",proxies=proxies,verify=False)
-       # print(s.cookies)
+        html = self.__session.get(self._url).content
+        soup = BeautifulSoup(html, "html.parser")
+        csrf = soup.find('input', {'name': 'loginCsrfParam'}).get('value')
 
-        r = s.get(url_mobile,proxies=proxies,verify=False)
-        #print(s.cookies)
-        #print(r.content)
+        login_information = {
+            'session_key': "fitvut@seznam.cz",
+            'session_password': "diplomka2019",
+            'loginCsrfParam': csrf,
+            'trk': 'guest_homepage-basic_sign-in-submit'
+        }
 
-
-        #####
-
-       # r = s.get(url,proxies=proxies, verify=False)
-       # print(s.cookies)
-
-        #  exit(0)
-        #print(r.content)
-        # get auth token
-        soup = BeautifulSoup(r.content, "lxml")
-        AUTH_TOKEN = soup.select_one("input[name=authenticity_token]")["value"]
-        images = soup.findAll('img')
-        MOBILE_TOKEN = 0
-        for item in images:
-            if item["src"][0:12] == "/i/anonymize":
-                #MOBILE_TOKEN = item["src"][18:]
-                MOBILE_TOKEN = item["src"]
-        #print(urllib.parse.unquote(MOBILE_TOKEN))
-        r = s.get(url_mobile+MOBILE_TOKEN,proxies=proxies,verify=False)
-        print(s.cookies) 
-        data["authenticity_token"] = AUTH_TOKEN
-        
-        r = s.post(url_mobile+"/sessions",proxies=proxies,data=data,verify=False)
-        r = s.get(url_mobile,proxies=proxies,verify=False)
-        r = s.get("https://twitter.com/settings/safety",proxies=proxies,verify=False)
-        print (s.cookies)
-        #print(r.content)
-        # update data, post and you are logged in.
-        #r = s.post(post, data=data,proxies=proxies, verify=False)
-        #print(s.cookies)
-      #  r = s.get("https://twitter.com", proxies=proxies, verify=False)
-       # r = s.get("https://twitter.com", proxies=proxies, verify=False)
-
-        #print(r.content)
+        self.__session.post(self._login, data=login_information)
+   
+    def use_selenium(self,url,cookies):
+        self._driver = webdriver.Firefox()
+        self._driver.get(self._url)
+        for c in cookies :
+            self._driver.add_cookie({'name': c.name, 'value': c.value, 'path': c.path, 'expiry': c.expires})
+        time.sleep(2)
+        self._driver.get(url)
+        time.sleep(1)
+        return self._driver.page_source
 
 
+    def parse(self):
+        for item in self._endpoints:
+            html_data = self.use_selenium(item, self.__session.cookies)
+            soup = BeautifulSoup(html_data,"html.parser")
+            value = soup.find("option", selected = True)
+            if value is not None:
+                value = value.get("value")
+            else:
+                value = soup.find("input",{"name":"meet-the-team"})
+                if value is not None:
+                    if soup.find("input",{"name":"meet-the-team","checked":True}) is not None:
+                        value = True    # checkbox checked
+                    else:
+                        value = False
 
+                else:  #  soup = BeautifulSoup(html_data, "html.parser")
+                    value = soup.find("input",{"class":"show-full-last-name-radio","checked":True})
+                    if value is not None:
+                        value = value.get("value")
+                    else:
+                        value = soup.find("input",{"name":"data-sharing"})
+                        if value is not None:
+                            value = soup.find("input",{"name":"data-sharing","checked":True})
+                            if value is not None:
+                                value = True
+                            else:
+                                value = False
+                        else:
+                            value = soup.find("input",{"name":"discloseAsProfileViewer","checked":True})
+                            if value is not None:
+                                value = value.get("value")
+                            else:
+                                value = soup.find("input",{"name":"presenceVisibility","checked":True})
+                                if value is not None:
+                                    value = value.get("value")
+                                else:
+                                    value = soup.find("input",{"name":"activity-broadcast"})
+                                    if value is not None:
+                                        value = soup.find("input",{"name":"activity-broadcast","checked":True})
+                                        if value is not None:
+                                            value = True
+                                        else:
+                                            value = False
+                                    else:
+                                        value = soup.find("input",{"name":"mentions"})
+                                        if value is not None:
+                                            value = soup.find("input",{"name":"mentions","checked":True})
+                                            if value is not None:
+                                                value = True
+                                            else:
+                                                value = False
+
+            self._data[item[35:]] = value 
+            self._driver.close()
+            print(str(item[35:])+str(Constants.LinkedInEvaluation[value]))
+ 
 
 
 if __name__ == '__main__':
-    test = TwitterLogin()
+    test = LinkedInLogin()
     test.login("y","Y")
     test.parse()
-    test.store_data("twitter_data.json")
 
     #test = LoginHandle()
     #test.load_data("facebook_data.json")
