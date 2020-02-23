@@ -11,8 +11,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import ElementNotInteractableException
+from selenium.common.exceptions import ElementClickInterceptedException
+
 import time
 import re
+import yaml
 
 class LoginError(Exception):
     """Raised when failed login into Social network """
@@ -55,7 +59,14 @@ class Constants:
         "Povolit ostatním sdílet veřejné příběhy ve vlastním příběhu?":"Allow others to share your public stories to their own story?",
         "Umožnit sdílení vašich příběhů lidem, které zmíníte?":"Allow people to share your stories if you mention them?",
         "Zapnout historii polohy v mobilním zařízení?":"Turn on Location History for your mobile devices?",
-        "Jenom já":"Only me"
+        "Jenom já":"Only me",
+        "Aktivita na webu a v aplikacích":"Web & App Activity",
+        "Historie polohy":"Location History",
+        "Historie YouTube":"YouTube History",
+        "Kontaktní údaje uložené z komunikace":"Contact info saved from interactions",
+        "Kontakty z vašich zařízení":"Contact info from your devices",
+        "Sdílená doporučení v reklamách":"Shared endorsements in ads",
+        "Pozastaveno":"Paused"
 
     }
     Evaluation = {
@@ -127,6 +138,7 @@ class Constants:
         True:1,
         False:0
         }
+
     LinkedInWeights = {
         "privacy/email":0.65,
         "connections-visibility":0.60,
@@ -141,7 +153,68 @@ class Constants:
         "visibility/phone":0.70,
         }
 
+    GoogleEvaluation = {
+            "On":1,
+            "Off":0,
+            "Paused":0
+            }
 
+    GoogleWeights = {
+            "Web & App Activity":0.7,
+            "Location History":0.8,
+            "YouTube History":0.6,
+            "Contact info saved from interactions":0.8,
+            "Contact info from your devices":0.7,
+            "Shared endorsements in ads":0.4
+            }
+
+    @staticmethod
+    def dump_twitter():
+        return {"weights" : Constants.TwitterWeights,"evaluation" : Constants.TwitterEvaluation}
+
+    @staticmethod 
+    def dump_facebook():
+        return {"weights" : Constants.FacebookWeights,"evaluation" : Constants.Evaluation}
+    
+    @staticmethod
+    def dump_linkedin():     
+        return {"weights" : Constants.LinkedInWeights,"evaluation" : Constants.LinkedInEvaluation}
+
+    @staticmethod
+    def dump_google():
+        return {"weights" : Constants.GoogleWeights,"evaluation" : Constants.GoogleEvaluation}
+
+    @staticmethod
+    def export_settings_yaml(network,path):
+        if network == "facebook":
+            data = Constants.dump_facebook()
+        elif network == "twitter":
+            data = Constants.dump_twitter()
+        elif network == "linkedin":
+            data = Constants.dump_linkedin()
+        elif network == "google":
+            data = Constants.dump_google()
+
+        with open(path,'w') as output:
+            yaml.dump(data,output,default_flow_style=False)
+    
+    @staticmethod
+    def import_settings_yaml(network,path):
+        with open(path,'r') as input:
+           data = yaml.safe_load(input)
+
+        if network == "facebook":
+            Constants.FacebookWeights = data["weights"]
+            Constants.Evaluation = data["evaluation"]
+        elif network == "twitter":
+            Constants.TwitterWeights = data["weights"]
+            Constants.TwitterEvaluation = data["evaluation"]
+        elif network == "google":
+            Constants.GoogleWeights = data["weights"]
+            Constants.GoogleEvaluation = data["evaluation"]
+        elif network == "linkedin":
+            Constants.LinkedInWeights = data["weights"]
+            Constants.LinkedInEvaluation = data["evaluation"]
 
     @staticmethod
     def cz_to_en_translate(word):
@@ -163,6 +236,13 @@ class Constants:
     @staticmethod
     def get_facebook_evaluation():
         return Constants.Evaluation
+
+    @staticmethod
+    def cz_to_en_dict_translate(input_dict):
+        result = {}
+        for key, value in input_dict.items():
+            result[Constants.cz_to_en_translate(key)] = Constants.cz_to_en_translate(value)
+        return result
 
 class Model:
     def __init__(self,ext_data=None,profil=None,evaluation_array=None):
@@ -555,11 +635,105 @@ class LinkedInLogin(LoginHandle):
             print(str(item[35:])+str(Constants.LinkedInEvaluation[value]))
  
 
+class GoogleLogin(LoginHandle):
+    
+    def __init__(self):
+        super().__init__()
+        self._url = "https://stackoverflow.com/"
+        self._login = "https://stackoverflow.com/users/login?ssrc=head&returnurl=https%3a%2f%2fstackoverflow.com%2f"
+        self._google = "https://www.youtube.com/"
+        self._google_account = ""
+        self._driver = webdriver.Firefox()
+        self._wait = 5
+
+    def login(self,name,passwd):
+        #login via Stack overflow
+
+        self._driver.get(self._url)
+        self._driver.get(self._login)
+
+        google_login_redirect = self._driver.find_element_by_xpath('//*[@id="openid-buttons"]/button[1]')
+        google_login_redirect.click()
+
+        try:
+            WebDriverWait(self._driver,self._wait).until(EC.presence_of_element_located((By.XPATH,'//*[@id="identifierId"]')))
+        except TimeoutException:
+            print("timeout")
+        # set up credentials into google form
+        name_input = self._driver.find_element_by_xpath('//*[@id="identifierId"]')
+        name_input.clear()
+        name_input.send_keys("fitvut2019")
+
+        next_page = self._driver.find_element_by_xpath('//*[@id="identifierNext"]')
+        next_page.click()
+       
+        try: 
+            WebDriverWait(self._driver,self._wait).until(EC.presence_of_element_located((By.XPATH,'//*[@id="passwordNext"]')))
+        except TimeoutException:
+            print("timeout")
+
+        passwd_input = self._driver.find_element_by_xpath('//*[@id="password"]/div[1]/div/div[1]/input')
+        passwd_input.clear()
+        passwd_input.send_keys("diplomka2019")
+
+        next_page = self._driver.find_element_by_xpath('//*[@id="passwordNext"]')
+        next_page.click()
+
+    def parse(self):
+        # logged state
+        # goto google page(youtube)
+        self._driver.get(self._google)
+
+        try:
+            WebDriverWait(self._driver,self._wait).until(EC.presence_of_element_located((By.XPATH,'//*[@id="avatar-btn"]')))
+        except TimeoutException:
+                print("timeout")
+        # navigate to settings
+        self._driver.get("https://myaccount.google.com/u/0/data-and-personalization")
+
+        # extract settings
+        settings = {'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[2]/div/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[2]/div/a/div/div[2]/div/div[2]/div/div[2]', #activity on web and applications
+                '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]', #location history
+                '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]'
+                }
+        self._language = self._driver.find_element_by_xpath('//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[8]/div/div/div[2]/div/a/div/div[2]/div/div[2]/div/div').text
+        self._language = self._language.split()[0]
+        for key, value in settings.items():
+            self._data[self._driver.find_element_by_xpath(key).text] =self._driver.find_element_by_xpath(value).text 
+            #print(self._driver.find_element_by_xpath(key).text+":"+self._driver.find_element_by_xpath(value).text)
+        
+        settings = {'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts saved from communication
+                    '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts from your device
+                    '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[4]/div/div/div[2]/div/div/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[4]/div/div/div[2]/div/div/div/div[2]/div/div[2]/div/div[2]' #connect your profile with ads
+                    }
+
+           
+
+        self._driver.get("https://myaccount.google.com/u/0/people-and-sharing")
+
+        for key, value in settings.items():
+            self._data[self._driver.find_element_by_xpath(key).text] =self._driver.find_element_by_xpath(value).text 
+            #print(self._driver.find_element_by_xpath(key).text+":"+self._driver.find_element_by_xpath(value).text)
+        if not Constants.is_english(self._language):
+            self._data = Constants.cz_to_en_dict_translate(self._data)
+        print(self._language)
+        print(self._data)
+
 
 if __name__ == '__main__':
-    test = LinkedInLogin()
-    test.login("y","Y")
-    test.parse()
+    Constants.export_settings_yaml("twitter","twitter.yaml")
+    Constants.export_settings_yaml("google","google.yaml")
+    Constants.export_settings_yaml("facebook","facebook.yaml")
+    Constants.export_settings_yaml("linkedin","linkedin.yaml")
+    #test = GoogleLogin()
+    #try:
+     #   test.login("y","Y")
+    #except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+     #   test.login("y","Y")
+    #try:
+     #   test.parse()
+    #except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+     #   test.parse()
 
     #test = LoginHandle()
     #test.load_data("facebook_data.json")
