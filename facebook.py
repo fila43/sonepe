@@ -244,6 +244,58 @@ class Constants:
             result[Constants.cz_to_en_translate(key)] = Constants.cz_to_en_translate(value)
         return result
 
+class OSN:
+    def __init__(self,settings = None):
+        self._name = None
+        self._weights = None
+        self._evaluation = None
+
+    def get_weights(self):
+        """
+        return privacy impact weights for each option
+        """
+        return self._weights
+
+    def get_evaluation(self):
+        """
+        return mapping dict between words and values - on ->1 ....
+        """
+        return self._weights
+
+    def export_settings_yaml(self,path):
+        with open(path,'w') as output:
+            yaml.dump({"name":self._name,"weights":self._weights,"evaluation":self_evaluation},output,default_flow_style=False)
+    
+    def import_settings_yaml(self,path):
+         with open(path,'r') as input_data:
+            data = yaml.safe_load(input_data)
+            if data["name"] != self._name:
+               print("bad ONS loaded")
+               exit(1)
+            
+            self._weights = data["weights"]
+            self._evaluation = data["evaluation"]
+
+    def get_advise(data):
+        """
+        user settings from social network 
+        """
+        pass
+
+class Facebook(OSN):
+    def __init__(self, settings = None):
+        super().__init__(settings)
+
+class Twitter(OSN):
+    pass
+
+class Google(OSN):
+    pass
+
+class LinkedIn(OSN):
+    pass
+
+
 class Model:
     def __init__(self,ext_data=None,profil=None,evaluation_array=None):
         self._ex_data = ext_data
@@ -353,14 +405,23 @@ class Extractor:
         self._acc = {}
 
     def add_social_network(self,name = None ,username = None,password = None,file_name = None):
-        if name ==  "facebook":
-            if file_name is None:
+        if file_name is None:
+            if name ==  "facebook":
                 self._acc[name] = FacebookLogin()
-                self._acc[name].login(username,password)
-                self._acc[name].parse()
-            else:
+            elif name == "twitter":
+                self._acc[name] = TwitterLogin()
+            elif name == "google":
+                self._acc[name] = GoogleLogin()
+            elif name == "linkedin":
+                self._acc[name] = LinkedInLogin()
+
+            self._acc[name].login(username,password)
+            self._acc[name].parse()
+        
+        elif file_name is not None:
                 self._acc[name] = LoginHandle()
                 self._acc[name].load_data(file_name)
+
             
     
     def run(self):
@@ -721,19 +782,19 @@ class GoogleLogin(LoginHandle):
 
 
 if __name__ == '__main__':
-    Constants.export_settings_yaml("twitter","twitter.yaml")
-    Constants.export_settings_yaml("google","google.yaml")
-    Constants.export_settings_yaml("facebook","facebook.yaml")
-    Constants.export_settings_yaml("linkedin","linkedin.yaml")
-    #test = GoogleLogin()
-    #try:
-     #   test.login("y","Y")
-    #except (ElementNotInteractableException, ElementClickInterceptedException) as e:
-     #   test.login("y","Y")
-    #try:
-     #   test.parse()
-    #except (ElementNotInteractableException, ElementClickInterceptedException) as e:
-     #   test.parse()
+    #Constants.export_settings_yaml("twitter","twitter.yaml")
+    #Constants.export_settings_yaml("google","google.yaml")
+    #Constants.export_settings_yaml("facebook","facebook.yaml")
+    #Constants.export_settings_yaml("linkedin","linkedin.yaml")
+    test = GoogleLogin()
+    try:
+        test.login("y","Y")
+    except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+        test.login("y","Y")
+    try:
+        test.parse()
+    except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+        test.parse()
 
     #test = LoginHandle()
     #test.load_data("facebook_data.json")
