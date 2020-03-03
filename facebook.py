@@ -276,7 +276,7 @@ class OSN:
             self._weights = data["weights"]
             self._evaluation = data["evaluation"]
 
-    def get_advise(self,data):
+    def get_advice(self,data):
         """
         user settings from social network 
         """
@@ -321,7 +321,7 @@ class Facebook(OSN):
             }
 
 
-    def get_advise(self,data):
+    def get_advice(self,data):
          for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
             if self._evaluation[data[key]] >= 1:
                 yield key
@@ -345,7 +345,7 @@ class LinkedIn(OSN):
             "visibility/phone":0.70
         }
         
-        self._advise = {
+        self._advice = {
         "privacy/email":"Who can see your email address",
         "connections-visibility":"Who can see your connections",
         "show-full-last-name":"Who can see your last name", # prijmeni ?? ve spojeni s praci ....
@@ -361,7 +361,7 @@ class LinkedIn(OSN):
 
 
 
- 
+
         self._evaluation = {
             "EVERYONE":1.3,
             "True":1,
@@ -383,14 +383,14 @@ class LinkedIn(OSN):
             False:0
         }
 
-    def get_advise(self,data):
+    def get_advice(self,data):
         for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
             if self._evaluation[data[key]] >= 1:
                 yield self._advice[key]
 
     def export_settings_yaml(self,path):
         with open(path,'w') as output:
-            yaml.dump({"name":self._name,"weights":self._weights,"evaluation":self._evaluation,"advise":self._advise},output,default_flow_style=False)
+            yaml.dump({"name":self._name,"weights":self._weights,"evaluation":self._evaluation,"advice":self._advice},output,default_flow_style=False)
     
     def import_settings_yaml(self,path):
          with open(path,'r') as input_data:
@@ -401,7 +401,7 @@ class LinkedIn(OSN):
             
             self._weights = data["weights"]
             self._evaluation = data["evaluation"]
-            self._advise = data["advise"]
+            self._advice = data["advice"]
 
 
 
@@ -417,7 +417,7 @@ class Twitter(LinkedIn):
             "allow_media_tagging": 0.45 #11FB
             }
  
-        self._advise = {
+        self._advice = {
             "protected": "Only show your Tweets to people who follow you. If selected, you will need to approve each new follower.", # 1FB
             "geo_enabled": "Add location information to my Tweets", #17FB
             "discoverable_by_email": "Let people who have your email address find you on Twitter", #4FB
@@ -427,12 +427,16 @@ class Twitter(LinkedIn):
 
 
         self._evaluation = {
+        "False":0,
+        "True":1,
+        False:0,
+        True:1,
         "false":0,
         "true":1,
         "all":1.3,
         "none":0,
         "following":1
-        } 
+        }
 
 class Google(Facebook):
     def __init__(self):
@@ -519,7 +523,8 @@ class W_PIDX(PIDX):
     def evaluate(self,operator):
         result = 0
         for key, value in self._data.items():
-            result = result + self._weights[key]*self._evaluation[value]
+            if key in self._weights:
+                result = result + self._weights[key]*self._evaluation[value]
      
         return result/sum(self._evaluation.values())
 
@@ -530,7 +535,8 @@ class M_PIDX(PIDX):
     def evaluate(self,operator):
         result = {}
         for key, value in self._data.items():
-            result[key] = self._weights[key]*self._evaluation[value]
+            if key in self._weights:
+                result[key] = self._weights[key]*self._evaluation[value]
         
         return max(result.values())
 
@@ -557,6 +563,7 @@ class Evaluator:
 
     def apply_model(self):
         if self._model == None:
+            print("set model !!")
             exit(1)
         return self._model.evaluate(operator.mul) #operator only for easy model
 
@@ -566,8 +573,8 @@ class Evaluator:
         self._model.update_evaluation(self._osn.get_evaluation()) 
         self._model.update_profil(self._osn.get_weights())
 
-    def advise(self):
-        return self._osn.get_advise(self._data)
+    def advice(self):
+        return self._osn.get_advice(self._data)
 
 
     """
@@ -724,10 +731,10 @@ class TwitterLogin(LoginHandle):
         super().__init__()
         self._url = "http://www.twitter.com"
         self._redirect_delay = 5
-        self._driver = webdriver.Firefox() #TODO need to be setup gecko
         self._endpoint = "https://twitter.com/settings/account"
 
     def login(self,name,passwd):
+        self._driver = webdriver.Firefox() #TODO need to be setup gecko
         self._driver.get(self._url)
         try:
             myElem = WebDriverWait(self._driver, self._redirect_delay).until(EC.presence_of_element_located((By.NAME, 'session[username_or_email]')))
@@ -883,10 +890,10 @@ class GoogleLogin(LoginHandle):
         self._login = "https://stackoverflow.com/users/login?ssrc=head&returnurl=https%3a%2f%2fstackoverflow.com%2f"
         self._google = "https://www.youtube.com/"
         self._google_account = ""
-        self._driver = webdriver.Firefox()
         self._wait = 5
 
     def login(self,name,passwd):
+        self._driver = webdriver.Firefox()
         #login via Stack overflow
 
         self._driver.get(self._url)
@@ -970,51 +977,74 @@ if __name__ == '__main__':
             network = input(">")
             if network == "Facebook" or network == "F" or network == "facebook":
                 nt = Facebook()
-                nt.import_settings_yaml("facebook.yaml")
+#                nt.import_settings_yaml("facebook.yaml")
 
                 login = FacebookLogin()
             elif network == "Twitter" or network == "T" or network == "twitter":
                 nt = Twitter()
-                nt.import_settings_yaml("twitter.yaml")
+ #               nt.import_settings_yaml("twitter.yaml")
 
                 login = TwitterLogin()
             elif network == "Google" or network == "G" or network == "google":
                 nt = Google()
-                nt.import_settings_yaml("google.yaml")
+  #              nt.import_settings_yaml("google.yaml")
 
                 login = GoogleLogin()
             elif network == "LinkedIn" or network == "L" or network == "linkedin":
                 nt = LinkedIn()
-                nt.import_settings_yaml("linkedin.yaml")
+   #             nt.import_settings_yaml("linkedin.yaml")
 
                 login = LinkedInLogin()
-            print ("downloading data from "+nt._name)
-            login.login("","")
-            login.parse()
-        
-            print("Model: Weight&visibility - WV | M-PIDX - MP  | W-PIDX - WP  | C-PIDX - CP")
 
-            evaluator = Evaluator(osn=nt,data=login.get_data())
-            model = input(">")
-            if model == "Weight&visibility" or model == "WV":
-                evaluator.change_model(Weight_visibility_model())
-            elif model == "M-PIDX" or model == "MP":
-                evaluator.change_model(M_PIDX())
-            elif model == "W-PIDX" or model == "WP":
-                evaluator.change_model(W_PIDX())
-            elif model == "C-PIDX" or model == "CP":
-                evaluator.change_model(C_PIDX())
+            print("Download data from web - D | Load from local - L")
+            local = input(">")
+            if local == "D":
+                print ("downloading data from "+nt._name)
+                try:
+                    login.login("","")
+                except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+                    login._driver.close()
+                    login.login("","")
+                try:
+                    login.parse()
+                except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+                    login.parse()
+            else:
+                path = input("data path: ")
+                login.load_data(path)
+            
+            while 1:
+                print("Model: Weight&visibility - WV | M-PIDX - MP  | W-PIDX - WP  | C-PIDX - CP || Store_data - S")
+
+                evaluator = Evaluator(osn=nt,data=login.get_data())
+                model = input(">")
+                if model == "Weight&visibility" or model == "WV":
+                    evaluator.change_model(Weight_visibility_model())
+                    break
+                elif model == "M-PIDX" or model == "MP":
+                    evaluator.change_model(M_PIDX())
+                    break
+                elif model == "W-PIDX" or model == "WP":
+                    evaluator.change_model(W_PIDX())
+                    break
+                elif model == "C-PIDX" or model == "CP":
+                    evaluator.change_model(C_PIDX())
+                    break
+                elif model == "S":
+                    path = input("set path: ")
+                    login.store_data(path)
+                
        
             
-            advise = evaluator.advise()
+            advice = evaluator.advice()
             while 1:
-                print("Evaluate - E | Get advise - A | Back - B | Quit - Q")
+                print("Evaluate - E | Get advice - A | Back - B | Quit - Q")
 
                 action = input(">")
                 if action == "Evaluate" or action == "E":
                     print("Your privacy score: "+str(evaluator.apply_model()))
                 elif action == "Advise" or action == "A":
-                    print("Try to change: " +next(advise))
+                    print("Try to change: " +next(advice))
                 elif action == "Back" or action == "B":
                     break
                 elif action == "Quit" or action == "Q":
@@ -1029,7 +1059,7 @@ if __name__ == '__main__':
     
     evaluator = Evaluator(C_PIDX(),fb,fb_data.get_data())
     print (evaluator.apply_model())
-    mygen = evaluator.advise()
+    mygen = evaluator.advice()
     print (next(mygen))
     print (next(mygen))
 
