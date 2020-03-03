@@ -260,11 +260,11 @@ class OSN:
         """
         return mapping dict between words and values - on ->1 ....
         """
-        return self._weights
+        return self._evaluation
 
     def export_settings_yaml(self,path):
         with open(path,'w') as output:
-            yaml.dump({"name":self._name,"weights":self._weights,"evaluation":self_evaluation},output,default_flow_style=False)
+            yaml.dump({"name":self._name,"weights":self._weights,"evaluation":self._evaluation},output,default_flow_style=False)
     
     def import_settings_yaml(self,path):
          with open(path,'r') as input_data:
@@ -276,7 +276,7 @@ class OSN:
             self._weights = data["weights"]
             self._evaluation = data["evaluation"]
 
-    def get_advise(data):
+    def get_advise(self,data):
         """
         user settings from social network 
         """
@@ -285,52 +285,213 @@ class OSN:
 class Facebook(OSN):
     def __init__(self, settings = None):
         super().__init__(settings)
+        self._name = "facebook"
+        self._evaluation = {
+            "Public":1.3,
+            "Everyone":1.3,
+            "Friends":1,
+            "Friends of friends":1.15,
+            "On":1,
+            "Off":0,
+            "Allow":1,
+            "Don't allow":0,
+            "Yes":1,
+            "No":0,
+            "Only me":0
 
-class Twitter(OSN):
-    pass
+            }
+        self._weights = {
+            "Who can see your future posts?":0.25,
+            "Who can send you friend requests?":0.15,
+            "Who can see your friends list?":0.60,
+            "Who can look you up using the email address you provided?":0.65,
+            "Who can look you up using the phone number you provided?":0.70,
+            "Do you want search engines outside of Facebook to link to your Profile?":0.50, #??
+            "Who can post on your timeline?":0.5, #ma dopad na soukromí?
+            "Who can see what others post on your timeline?":0.5, #ma dopad na soukromí?
+            "Allow others to share your posts to their story?":0.25,
+            "Hide comments containing certain words from your timeline":-0.15, # improve security
+            "Who can see posts that you're tagged in on your timeline?":0.45,
+            "When you're tagged in a post, who do you want to add to the audience of the post if they can't already see it?":0.4, #co to znamená????
+            "Review posts that you're tagged in before the posts appear on your timeline?":-0.2, #improve security
+            "Review tags that people add to your posts before the tags appear on Facebook?":-0.2,
+            "Allow others to share your public stories to their own story?":0.6,
+            "Allow people to share your stories if you mention them?":0.5,
+            "Turn on Location History for your mobile devices?":0.8
+            }
 
-class Google(OSN):
-    pass
+
+    def get_advise(self,data):
+         for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
+            if self._evaluation[data[key]] >= 1:
+                yield key
+
 
 class LinkedIn(OSN):
-    pass
+    def __init__(self):
+        super().__init__()
+        self._name = "linkedin"
+        self._weights = {
+            "privacy/email":0.65,
+            "connections-visibility":0.60,
+            "show-full-last-name":0.50, # prijmeni ?? ve spojeni s praci ....
+            "meet-the-team":0.4, # zobrazeni profilu u zamestnavatelu
+            "data-sharing":0.5,
+            "profile-visibility":0.5, # jak jsem videt mezi lidmi co si zobrazili profil
+            "presence":0.05, # jsem online??
+            "activity-broadcast":0.4,# oznamovat me zmeny v síti kontaktu
+            "mentions":0.45, # oznacovani
+            "visibility/email":0.65,
+            "visibility/phone":0.70
+        }
+        
+        self._advise = {
+        "privacy/email":"Who can see your email address",
+        "connections-visibility":"Who can see your connections",
+        "show-full-last-name":"Who can see your last name", # prijmeni ?? ve spojeni s praci ....
+        "meet-the-team":"Show my name and/or picture with content about my employers, such as in job posting details and on company pages and insights, and with content related to my publicly expressed interests (e.g. when I like a service or follow a company, or comment or share its posts, LinkedIn may include my name and photo with their sponsored content when shown to my connections)?", # zobrazeni profilu u zamestnavatelu
+        "data-sharing":"Profile visibility off LinkedIn",
+        "profile-visibility":"Choose whether you’re visible or viewing in private mode", # jak jsem videt emezi lidmi co si zobrazili profil
+        "presence":"Choose who can see when you are on LinkedIn", # jsem online??
+        "activity-broadcast":"Share job changes, education changes, and work anniversaries from profile",# oznamovat me zmeny v síti kontaktu
+        "mentions":"Choose whether other members can mention or tag you", # oznacovani
+        "visibility/email":"Manage who can discover your profile from your email address",
+        "visibility/phone":"Manage who can discover your profile from your phone number"
+        }
+
+
+
+ 
+        self._evaluation = {
+            "EVERYONE":1.3,
+            "True":1,
+            "False":0,
+            "FIRST_DEGREE_CONNECTIONS":1.15,
+            "HIDE":0,# need to check 
+            "DISCLOSE_FULL":1.15, # need to check
+            "DISCLOSE_ANONYMOUS":1, # need to check
+            "JUST_ME":0,
+            "FIRST_DEGREE_CONNECTIONS":1,
+            "SECOND_DEGREE_CONNECTIONS":1.15,
+            "EVERYONE":1.3,
+            "CONNECTIONS":1,
+            "LINKEDIN_USER":1.3,
+            "HIDDEN":0,
+            "true":1,
+            "false":0,
+            True:1,
+            False:0
+        }
+
+    def get_advise(self,data):
+        for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
+            if self._evaluation[data[key]] >= 1:
+                yield self._advice[key]
+
+    def export_settings_yaml(self,path):
+        with open(path,'w') as output:
+            yaml.dump({"name":self._name,"weights":self._weights,"evaluation":self._evaluation,"advise":self._advise},output,default_flow_style=False)
+    
+    def import_settings_yaml(self,path):
+         with open(path,'r') as input_data:
+            data = yaml.safe_load(input_data)
+            if data["name"] != self._name:
+               print("bad ONS loaded")
+               exit(1)
+            
+            self._weights = data["weights"]
+            self._evaluation = data["evaluation"]
+            self._advise = data["advise"]
+
+
+
+class Twitter(LinkedIn):
+    def __init__(self):
+        super().__init__()
+        self._name = "twiitter"
+        self._weights = {
+            "protected": 0.25, # 1FB
+            "geo_enabled": 0.8, #17FB
+            "discoverable_by_email": 0.60, #4FB
+            "discoverable_by_mobile_phone": 0.70, #5FB
+            "allow_media_tagging": 0.45 #11FB
+            }
+ 
+        self._advise = {
+            "protected": "Only show your Tweets to people who follow you. If selected, you will need to approve each new follower.", # 1FB
+            "geo_enabled": "Add location information to my Tweets", #17FB
+            "discoverable_by_email": "Let people who have your email address find you on Twitter", #4FB
+            "discoverable_by_mobile_phone": "Let people who have your phone number find you on Twitter.", #5FB
+            "allow_media_tagging": "Allow people to tag you in photos and receive notifications when they do" #11FB
+            }
+
+
+        self._evaluation = {
+        "false":0,
+        "true":1,
+        "all":1.3,
+        "none":0,
+        "following":1
+        } 
+
+class Google(Facebook):
+    def __init__(self):
+        super().__init__()
+        self._name = "google"
+        self._evaluation = {
+            "On":1,
+            "Off":0,
+            "Paused":0
+            }
+        
+        self._weights = {
+            "Web & App Activity":0.7,
+            "Location History":0.8,
+            "YouTube History":0.6,
+            "Contact info saved from interactions":0.8,
+            "Contact info from your devices":0.7,
+            "Shared endorsements in ads":0.4
+            }
+
+
+ 
 
 
 class Model:
-    def __init__(self,ext_data=None,profil=None,evaluation_array=None):
-        self._ex_data = ext_data
-        self._profil = profil
-        self._eval_array = evaluation_array
+    def __init__(self, data=None,weights=None,evaluation=None):
+        self.__data = data
+        self._weights = weights
+        self._evaluation = evaluation
     
     def update_data(self,data):
-        self._ex_data = data
+        self._data = data
 
     def update_evaluation(self,e):
-        self._eval_array = e
+        self._evaluation = e
 
     def evaluate(self):
         pass
 
     def update_profil(self,profil):
         """ profil holds weights"""
-        self._profil = profil
+        self._weights = profil
 
 class Weight_visibility_model(Model):
-    def __init__(self,ext_data = None , profil = None , evaluation_array = None):
-        super().__init__(ext_data,profil,evaluation_array)
+    def __init__(self,data = None , profil = None , evaluation_array = None):
+        super().__init__(data,profil,evaluation_array)
 
     def evaluate(self,operator):
-        if self._ex_data is None or self._profil is None or self._eval_array is None:
+        if self._data is None or self._weights is None or self._evaluation is None:
             return -1
         
         result = 0
-        for key, value in self._ex_data.items():
-            result = result + operator(self._profil[key], self._eval_array[value])
+        for key, value in self._data.items():
+            result = result + operator(self._weights[key], self._evaluation[value])
         return result
             
 class PIDX(Model):
-    def __init__(self, data = None, pif = None, separation = None):
-        pass
+    def __init__(self, data = None, weights = None, evaluation = None):
+        super().__init__(data = data, weights = weights, evaluation = evaluation)
 
     def configuration_impact(self):
         #TODO st*pjt for each 
@@ -349,55 +510,72 @@ class PIDX(Model):
         pass
 
 class W_PIDX(PIDX):
-    def __init__(self, data = None, pif = None, separation = None):
-        super().__init__(data = data, pif = pif, separation = separation)
+    def __init__(self, data = None, weights = None, evaluation = None):
+        super().__init__(data = data, weights = weights, evaluation = evaluation)
         
     def privacy_function(self):
         pass
 
-class M_PIDX(PIDX):
-    def __init__(self, data = None, pif = None, separation = None):
-        super().__init__(data = data, pif = pif, separation = separation)
+    def evaluate(self,operator):
+        result = 0
+        for key, value in self._data.items():
+            result = result + self._weights[key]*self._evaluation[value]
+     
+        return result/sum(self._evaluation.values())
 
-    def evaluate(self):
-        #TODO maximum function
-        pass
+class M_PIDX(PIDX):
+    def __init__(self, data = None, weights = None, evaluation = None):
+        super().__init__(data = data, weights = weights, evaluation = evaluation)
+
+    def evaluate(self,operator):
+        result = {}
+        for key, value in self._data.items():
+            result[key] = self._weights[key]*self._evaluation[value]
+        
+        return max(result.values())
+
 
 class C_PIDX(W_PIDX,M_PIDX):
-    def __init__(self, data = None, pif = None, separation = None):
-        super(W_PIDX, self).__init__(data = data, pif = pif, separation = separation)
+    def __init__(self, data = None, weights = None, evaluation = None):
+        super(W_PIDX, self).__init__(data = data, weights = weights, evaluation = evaluation)
 
-    def evaluate(self):
-        # TODO only build C-pidx from M-pidx and w-pidx
-        pass
+    def evaluate(self,operator):
+        return M_PIDX.evaluate(self,None)+(100-M_PIDX.evaluate(self,None))*W_PIDX.evaluate(self,None)/100
 
 
 
 class Evaluator:
-    def __init__(self,model,data,weights,evaluation):
+    def __init__(self,osn,data,model = None):
         self._model = model
-        self._weights = weights
-        self._evaluation = evaluation
+        self._osn = osn
         self._data = data
-
-        model.update_data(data)
-        model.update_evaluation(evaluation)
-        model.update_profil(weights)
+        
+        if model is not None:
+            model.update_data(data)
+            model.update_evaluation(osn.get_evaluation())
+            model.update_profil(osn.get_weights())
 
     def apply_model(self):
+        if self._model == None:
+            exit(1)
         return self._model.evaluate(operator.mul) #operator only for easy model
 
     def change_model(self,new_model):
         self._model = new_model
         self._model.update_data(self._data)
-        self._model.update_evaluation(self._evaluation) 
-        self._model.update_profil(self._weights)
+        self._model.update_evaluation(self._osn.get_evaluation()) 
+        self._model.update_profil(self._osn.get_weights())
 
+    def advise(self):
+        return self._osn.get_advise(self._data)
+
+
+    """
     def advise_settings(self):
         for key,value in collections.OrderedDict(sorted(Constants.FacebookWeights.items(), key=lambda x: x[1], reverse=True)).items():
             if Constants.get_facebook_evaluation()[self._data[key]] >= 1:
                 yield key
-
+    """
 
 class Extractor:
     def __init__(self):
@@ -423,6 +601,7 @@ class Extractor:
                 self._acc[name].load_data(file_name)
 
             
+
     
     def run(self):
         """ need to be translate to english - models work with english, every call return one social network"""
@@ -584,7 +763,7 @@ class TwitterLogin(LoginHandle):
         c_regex = re.compile(regex)
         data = c_regex.findall( data)
         self._data = json.loads(data[0][9:])["settings"]
-        
+        self._driver.close() 
 
 class LinkedInLogin(LoginHandle):
     
@@ -644,6 +823,7 @@ class LinkedInLogin(LoginHandle):
             html_data = self.use_selenium(item, self.__session.cookies)
             soup = BeautifulSoup(html_data,"html.parser")
             value = soup.find("option", selected = True)
+
             if value is not None:
                 value = value.get("value")
             else:
@@ -690,10 +870,9 @@ class LinkedInLogin(LoginHandle):
                                                 value = True
                                             else:
                                                 value = False
-
+            
             self._data[item[35:]] = value 
             self._driver.close()
-            print(str(item[35:])+str(Constants.LinkedInEvaluation[value]))
  
 
 class GoogleLogin(LoginHandle):
@@ -777,15 +956,93 @@ class GoogleLogin(LoginHandle):
             #print(self._driver.find_element_by_xpath(key).text+":"+self._driver.find_element_by_xpath(value).text)
         if not Constants.is_english(self._language):
             self._data = Constants.cz_to_en_dict_translate(self._data)
-        print(self._language)
-        print(self._data)
+
+        self._driver.close()
 
 
 if __name__ == '__main__':
-    #Constants.export_settings_yaml("twitter","twitter.yaml")
-    #Constants.export_settings_yaml("google","google.yaml")
-    #Constants.export_settings_yaml("facebook","facebook.yaml")
-    #Constants.export_settings_yaml("linkedin","linkedin.yaml")
+    name = None
+    while 1:
+        print("Interni - I | Externi - E | Quit - Q")
+        mode = input(">")
+        if mode == "Interni" or mode == "I" or mode == "interni":
+            print("Podporovane site: Facebook - F | Twitter - T | LinkedIn - L | Google - G ")
+            network = input(">")
+            if network == "Facebook" or network == "F" or network == "facebook":
+                nt = Facebook()
+                nt.import_settings_yaml("facebook.yaml")
+
+                login = FacebookLogin()
+            elif network == "Twitter" or network == "T" or network == "twitter":
+                nt = Twitter()
+                nt.import_settings_yaml("twitter.yaml")
+
+                login = TwitterLogin()
+            elif network == "Google" or network == "G" or network == "google":
+                nt = Google()
+                nt.import_settings_yaml("google.yaml")
+
+                login = GoogleLogin()
+            elif network == "LinkedIn" or network == "L" or network == "linkedin":
+                nt = LinkedIn()
+                nt.import_settings_yaml("linkedin.yaml")
+
+                login = LinkedInLogin()
+            print ("downloading data from "+nt._name)
+            login.login("","")
+            login.parse()
+        
+            print("Model: Weight&visibility - WV | M-PIDX - MP  | W-PIDX - WP  | C-PIDX - CP")
+
+            evaluator = Evaluator(osn=nt,data=login.get_data())
+            model = input(">")
+            if model == "Weight&visibility" or model == "WV":
+                evaluator.change_model(Weight_visibility_model())
+            elif model == "M-PIDX" or model == "MP":
+                evaluator.change_model(M_PIDX())
+            elif model == "W-PIDX" or model == "WP":
+                evaluator.change_model(W_PIDX())
+            elif model == "C-PIDX" or model == "CP":
+                evaluator.change_model(C_PIDX())
+       
+            
+            advise = evaluator.advise()
+            while 1:
+                print("Evaluate - E | Get advise - A | Back - B | Quit - Q")
+
+                action = input(">")
+                if action == "Evaluate" or action == "E":
+                    print("Your privacy score: "+str(evaluator.apply_model()))
+                elif action == "Advise" or action == "A":
+                    print("Try to change: " +next(advise))
+                elif action == "Back" or action == "B":
+                    break
+                elif action == "Quit" or action == "Q":
+                    exit(0)
+
+        elif mode == "Quit" or mode == "Q":
+            exit(0)
+
+        else:
+            pass
+    exit(0)
+    
+    evaluator = Evaluator(C_PIDX(),fb,fb_data.get_data())
+    print (evaluator.apply_model())
+    mygen = evaluator.advise()
+    print (next(mygen))
+    print (next(mygen))
+
+    evaluator.change_model(M_PIDX())
+    print(evaluator.apply_model())
+    evaluator.change_model(W_PIDX())
+    print(evaluator.apply_model())
+    evaluator.change_model(Weight_visibility_model())
+    print(evaluator.apply_model())
+    
+
+
+    """
     test = GoogleLogin()
     try:
         test.login("y","Y")
@@ -795,7 +1052,7 @@ if __name__ == '__main__':
         test.parse()
     except (ElementNotInteractableException, ElementClickInterceptedException) as e:
         test.parse()
-
+    """
     #test = LoginHandle()
     #test.load_data("facebook_data.json")
     
