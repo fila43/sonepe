@@ -14,6 +14,11 @@ from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import ElementNotInteractableException
 from selenium.common.exceptions import ElementClickInterceptedException
 
+from oauthlib.oauth2 import LegacyApplicationClient
+from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2 import BackendApplicationClient
+from requests.auth import HTTPBasicAuth
+
 import time
 import re
 import yaml
@@ -490,7 +495,8 @@ class Weight_visibility_model(Model):
         
         result = 0
         for key, value in self._data.items():
-            result = result + operator(self._weights[key], self._evaluation[value])
+            if key in self._weights:
+                result = result + operator(self._weights[key], self._evaluation[value])
         return result
             
 class PIDX(Model):
@@ -629,9 +635,21 @@ class LoginHandle:
     def __init__(self):
         self._data = dict()
         self._language = Constants.ENGLISH
+        self._extern_data = None
+        self._user_id = None
 
     def get_language(self):
         return self._language
+    
+    def extern_login(self):
+        pass
+
+    def download_extern_data(self):
+        if self._user_id is not None:
+            self._extern_data = requests.get(self._url+"/"+self._user_id)
+        else:
+            print("first log in")
+            return 0
 
     def login(self,name,passwd):
         self.name = name
@@ -650,11 +668,16 @@ class LoginHandle:
     def get_data(self):
         return self._data
 
+    def get_user_id(self):
+        return self._user_id
+
+
 class FacebookLogin(LoginHandle):
 
 
     def __init__(self):
         super().__init__()
+        self._url = "https://www.facebook.com/"
         self.__language = "https://www.facebook.com/settings?tab=language"
         self.__endpoints = [
             "https://www.facebook.com/settings?tab=privacy",
@@ -688,6 +711,11 @@ class FacebookLogin(LoginHandle):
         return True
 
     def parse(self):
+        data = self.__session.get("https://www.facebook.com")
+        soup  = BeautifulSoup(data.text,'html.parser')
+        data = soup.findAll("a",class_="_2s25 _606w")
+        self._user_id = data[0]["href"][25:]
+
         # download page with language
         data = self.__session.get('https://www.facebook.com/settings?tab=language').text
 
@@ -763,13 +791,14 @@ class TwitterLogin(LoginHandle):
        return self._driver.get(url)
 
     def parse(self):
+
         self.get_page(self._endpoint)
-        #time.sleep(5)
         data = self._driver.page_source
         regex = r"\"remote\":{\"settings\":.*\"fetchStatus\":\"loaded\"}"
         c_regex = re.compile(regex)
         data = c_regex.findall( data)
         self._data = json.loads(data[0][9:])["settings"]
+        self._user_id = self._data["screen_name"]
         self._driver.close() 
 
 class LinkedInLogin(LoginHandle):
@@ -797,6 +826,31 @@ class LinkedInLogin(LoginHandle):
            # "https://www.linkedin.com/psettings/ingested-data-profile-match" impact??
         ]
  
+        
+    def extern_login(self):
+        
+        
+        """
+        client = BackendApplicationClient(client_id="86lu5zpk18vg2x")
+        oauth = OAuth2Session(client=client)
+        token = oauth.fetch_token(token_url='https://www.linkedin.com/oauth/v2/accessToken', client_id="86lu5zpk18vg2x",
+                client_secret="jx79WyUo6VpiR8Bf")
+
+        print (token)
+        """
+        """
+        ACT = "https://www.linkedin.com/oauth/v2/accessToken"
+        
+        y = requests.post("https://api.linkedin.com/oauth/v2/accessToken",headers = {"Content-Type": "application/x-www-form-urlencoded"}, data = {"client_id":"86lu5zpk18vg2x","client_secret":"jx79WyUo6VpiR8Bf","grant_type":"client_credentials"})  
+
+        #token = y.json()["token"]
+
+        print(y.content)
+
+        y = requests.get("https://api.linkedin.com/v2/jobs", headers = {"Connection": "Keep-Alive","Authorization": f"Bearer {token}"})
+        y.raise_for_status()
+        print (y.json())
+        """
     def login(self,name,passwd):
         HOMEPAGE_URL = 'https://www.linkedin.com'
         LOGIN_URL = 'https://www.linkedin.com/uas/login-submit'
@@ -826,6 +880,13 @@ class LinkedInLogin(LoginHandle):
 
 
     def parse(self):
+        data = self.use_selenium("https://www.linkedin.com/feed/",self.__session.cookies)
+        soup =  BeautifulSoup(data,"html.parser")
+        self._user_id = soup.find("a",{"data-control-name":"nav.settings_view_profile"})
+        self._driver.close()
+        self._user_id = self._user_id["href"]
+        print (self._user_id)
+
         for item in self._endpoints:
             html_data = self.use_selenium(item, self.__session.cookies)
             soup = BeautifulSoup(html_data,"html.parser")
@@ -968,11 +1029,12 @@ class GoogleLogin(LoginHandle):
 
 
 if __name__ == '__main__':
+    
     name = None
     while 1:
         print("Interni - I | Externi - E | Quit - Q")
         mode = input(">")
-        if mode == "Interni" or mode == "I" or mode == "interni":
+        if mode == "Interni" or mode == "I" or mode == "interni" or mode == "E":
             print("Podporovane site: Facebook - F | Twitter - T | LinkedIn - L | Google - G ")
             network = input(">")
             if network == "Facebook" or network == "F" or network == "facebook":
@@ -1009,6 +1071,10 @@ if __name__ == '__main__':
                     login.parse()
                 except (ElementNotInteractableException, ElementClickInterceptedException) as e:
                     login.parse()
+
+                if mode =="E":
+                    print("downloading Extern data")
+                    login.download_extern_data()
             else:
                 path = input("data path: ")
                 login.load_data(path)
