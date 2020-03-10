@@ -292,10 +292,10 @@ class Facebook(OSN):
         super().__init__(settings)
         self._name = "facebook"
         self._evaluation = {
-            "Public":1.3,
-            "Everyone":1.3,
+            "Public":3,
+            "Everyone":3,
             "Friends":1,
-            "Friends of friends":1.15,
+            "Friends of friends":2,
             "On":1,
             "Off":0,
             "Allow":1,
@@ -368,19 +368,19 @@ class LinkedIn(OSN):
 
 
         self._evaluation = {
-            "EVERYONE":1.3,
+            "EVERYONE":3,
             "True":1,
             "False":0,
-            "FIRST_DEGREE_CONNECTIONS":1.15,
+            "FIRST_DEGREE_CONNECTIONS":1,
             "HIDE":0,# need to check 
-            "DISCLOSE_FULL":1.15, # need to check
+            "DISCLOSE_FULL":2, # need to check
             "DISCLOSE_ANONYMOUS":1, # need to check
             "JUST_ME":0,
             "FIRST_DEGREE_CONNECTIONS":1,
-            "SECOND_DEGREE_CONNECTIONS":1.15,
-            "EVERYONE":1.3,
+            "SECOND_DEGREE_CONNECTIONS":2,
+            "EVERYONE":3,
             "CONNECTIONS":1,
-            "LINKEDIN_USER":1.3,
+            "LINKEDIN_USER":3,
             "HIDDEN":0,
             "true":1,
             "false":0,
@@ -438,7 +438,7 @@ class Twitter(LinkedIn):
         True:1,
         "false":0,
         "true":1,
-        "all":1.3,
+        "all":3,
         "none":0,
         "following":1
         }
@@ -461,9 +461,6 @@ class Google(Facebook):
             "Contact info from your devices":0.7,
             "Shared endorsements in ads":0.4
             }
-
-
- 
 
 
 class Model:
@@ -1057,8 +1054,8 @@ if __name__ == '__main__':
    #             nt.import_settings_yaml("linkedin.yaml")
 
                 login = LinkedInLogin()
-
-            print("Download data from web - D | Load from local - L")
+            nt.export_settings_yaml(nt._name+".yaml")
+            print("Download data from web - D | Load from local - L ")
             local = input(">")
             if local == "D":
                 print ("downloading data from "+nt._name)
@@ -1075,9 +1072,12 @@ if __name__ == '__main__':
                 if mode =="E":
                     print("downloading Extern data")
                     login.download_extern_data()
-            else:
+            elif local =="L":
                 path = input("data path: ")
                 login.load_data(path)
+
+
+            
             
             while 1:
                 print("Model: Weight&visibility - WV | M-PIDX - MP  | W-PIDX - WP  | C-PIDX - CP || Store_data - S")

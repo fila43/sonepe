@@ -1,0 +1,26 @@
+advice:
+  allow_media_tagging: Allow people to tag you in photos and receive notifications
+    when they do
+  discoverable_by_email: Let people who have your email address find you on Twitter
+  discoverable_by_mobile_phone: Let people who have your phone number find you on
+    Twitter.
+  geo_enabled: Add location information to my Tweets
+  protected: Only show your Tweets to people who follow you. If selected, you will
+    need to approve each new follower.
+evaluation:
+  'False': 0
+  'True': 1
+  false: 0
+  true: 1
+  'false': 0
+  'true': 1
+  all: 3
+  none: 0
+  following: 1
+name: twiitter
+weights:
+  allow_media_tagging: 0.45
+  discoverable_by_email: 0.6
+  discoverable_by_mobile_phone: 0.7
+  geo_enabled: 0.8
+  protected: 0.25

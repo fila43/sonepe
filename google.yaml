@@ -1,0 +1,12 @@
+evaluation:
+  'Off': 0
+  'On': 1
+  Paused: 0
+name: google
+weights:
+  Contact info from your devices: 0.7
+  Contact info saved from interactions: 0.8
+  Location History: 0.8
+  Shared endorsements in ads: 0.4
+  Web & App Activity: 0.7
+  YouTube History: 0.6
