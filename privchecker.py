@@ -3,6 +3,8 @@ import glob
 import sys
 import csv
 from math import ceil
+from lxml import html
+
 
 from selenium.common.exceptions import NoSuchElementException
 import requests
@@ -306,7 +308,7 @@ class OSN:
 class Facebook(OSN):
     def __init__(self, settings = None):
         super().__init__(settings)
-        self._name = "facebook"
+        self._name = "Facebook"
         self._min = 1.805
         self._max = 3.393
         self._default = 3.078
@@ -359,7 +361,7 @@ class Facebook(OSN):
 class LinkedIn(OSN):
     def __init__(self):
         super().__init__()
-        self._name = "linkedin"
+        self._name = "Linkedin"
         self._min = 1.78
         self._max = 2.84
         self._default = 2.73 
@@ -446,7 +448,7 @@ class LinkedIn(OSN):
 class Twitter(LinkedIn):
     def __init__(self):
         super().__init__()
-        self._name = "twiitter"
+        self._name = "Twiitter"
         self._min = 1.88
         self._max = 2.38
         self._default = 2.09
@@ -486,7 +488,7 @@ class Twitter(LinkedIn):
 class Google(Facebook):
     def __init__(self):
         super().__init__()
-        self._name = "google"
+        self._name = "Google"
         self._min = 1.44
         self._max = 5.51
         self._default = 3.62
@@ -514,7 +516,7 @@ class Instagram(LinkedIn):
         self._min = 0.066
         self._max = 1.296
         self._default = 1.296
-        self._name = "instagram"
+        self._name = "Instagram"
         self._weights = {
                 "disallow_story_reshare":0.6,
                 "presence_disabled":0.05,
@@ -542,9 +544,9 @@ class Tumblr(Facebook):
         super().__init__()
         # TODO set correct values
         self._min = 0
-        self._max = 0
-        self._default = 0
-        self._name = "tumblr"
+        self._max = 0.075
+        self._default = 0.075
+        self._name = "Tumblr"
         self._weights = {"Let others see that you're active": 0.05}
         self._evaluation = {
                 # reverted in osn settings
@@ -725,7 +727,7 @@ class LoginHandle:
     def __init__(self):
         self._data = dict()
         self._language = Constants.ENGLISH
-        self._extern_data = None
+        self._extern_data = dict()
         self._user_id = None
 
     def get_language(self):
@@ -775,6 +777,30 @@ class LoginHandle:
             else:
                 return ""
 
+    def parse_extern(self, endpoint, paths, driver = None):
+        flag = False
+        if driver is None:
+            driver = webdriver.Firefox()
+            flag = True
+
+        driver.get(endpoint+"/"+self._user_id)
+       # time.sleep(2)
+       # driver.refresh() only for facebook
+        time.sleep(4)
+        for key,value in paths.items():
+            try:
+                driver.find_element_by_xpath(value)
+                self._extern_data[key] = True
+            except NoSuchElementException:
+                self._extern_data[key] = False
+        
+        if flag:
+            driver.close()
+
+        print (self._extern_data)
+    
+
+
 class FacebookLogin(LoginHandle):
 
 
@@ -800,6 +826,8 @@ class FacebookLogin(LoginHandle):
 
         self._data["name"] = "Everyone"
         self._data["photo"] = "Everyone"
+        
+        self._extern_data = dict()
 
     def get_language(self):
         return self._language
@@ -861,6 +889,9 @@ class FacebookLogin(LoginHandle):
         # remove unusable settings with None value
         result = dict(filter(lambda a:a[1] is not None , result.items()))
         self._data.update(result)
+        self.parse_extern(self._url,{"hometown":'//*[@id="pagelet_hometown"]/div/div/div/span', 
+            "favorites":'//*[@id="favorites"]/div[2]/table',
+            "education":'//*[@id="pagelet_eduwork"]/div/div/div/span'})
 
 class TwitterLogin(LoginHandle):
 
@@ -871,6 +902,7 @@ class TwitterLogin(LoginHandle):
         self._endpoint = "https://twitter.com/settings/account"
         self._data["name"] = "all"
         self._data["photo"] = "all"
+        self._extern_data = None
     
 
 
@@ -900,6 +932,9 @@ class TwitterLogin(LoginHandle):
             print("cant find input") #Load error or page was changed
             exit(0)
         
+      
+
+        
     def get_page(self,url):
        time.sleep(self._redirect_delay) #TODO test if it enough.... and try again? 
        return self._driver.get(url)
@@ -914,6 +949,11 @@ class TwitterLogin(LoginHandle):
         self._data.update( json.loads(data[0][9:])["settings"])
         self._user_id = self._data["screen_name"]
         self._driver.close() 
+        self.parse_extern(self._url,{"hometown":'//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div/div/div/div[1]/div[2]/div[4]/div/span[1]/span/span', 
+            "favorites":'//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div/div/div/div[1]/div[2]/div[3]/div/div/span',
+            "education":'//*[@id="pagelet_eduwork"]/div/div/div/span'})
+
+
 
 class LinkedInLogin(LoginHandle):
     
@@ -943,46 +983,20 @@ class LinkedInLogin(LoginHandle):
         self._data["name"] = "EVERYONE"
         self._data["photo"] = "EVERYONE"
         self._data["education"] = "EVERYONE"
-
+        self._extern_data = dict()
 
         
     def extern_login(self):
+       pass 
         
-        
-        """
-        client = BackendApplicationClient(client_id="86lu5zpk18vg2x")
-        oauth = OAuth2Session(client=client)
-        token = oauth.fetch_token(token_url='https://www.linkedin.com/oauth/v2/accessToken', client_id="86lu5zpk18vg2x",
-                client_secret="jx79WyUo6VpiR8Bf")
-
-        print (token)
-        """
-        """
-        ACT = "https://www.linkedin.com/oauth/v2/accessToken"
-        
-        y = requests.post("https://api.linkedin.com/oauth/v2/accessToken",headers = {"Content-Type": "application/x-www-form-urlencoded"}, data = {"client_id":"86lu5zpk18vg2x","client_secret":"jx79WyUo6VpiR8Bf","grant_type":"client_credentials"})  
-
-        #token = y.json()["token"]
-
-        print(y.content)
-
-        y = requests.get("https://api.linkedin.com/v2/jobs", headers = {"Connection": "Keep-Alive","Authorization": f"Bearer {token}"})
-        y.raise_for_status()
-        print (y.json())
-        """
-
-
-
-
     def login(self,name,passwd):
         HOMEPAGE_URL = 'https://www.linkedin.com'
         LOGIN_URL = 'https://www.linkedin.com/uas/login-submit'
 
-        data = self.__session.get(self._url)
+        data = self.__session.get("https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin")
         html = data.content
         soup = BeautifulSoup(html, "html.parser")
         csrf = soup.find('input', {'name': 'loginCsrfParam'}).get('value')
-
         login_information = {
             'session_key': name,
             'session_password': passwd,
@@ -999,8 +1013,7 @@ class LinkedInLogin(LoginHandle):
             raise LoginError
 
     def use_selenium(self,url,cookies):
-        self._driver = webdriver.Firefox()
-        self._driver.get(self._url)
+        #self._driver = webdriver.Firefox()
         for c in cookies :
             self._driver.add_cookie({'name': c.name, 'value': c.value, 'path': c.path, 'expiry': c.expires})
         time.sleep(2)
@@ -1008,14 +1021,46 @@ class LinkedInLogin(LoginHandle):
         time.sleep(1)
         return self._driver.page_source
 
+    def parse_extern(self,endpoint):
+        self._driver.get(endpoint+"/"+self._user_id)
+        data = self._driver.page_source
+
+        #print(data)
+
+        hometown_r  = r"\"defaultLocalizedName\":\"[\w - | .',]*\""
+        work_r  = r"\"companyName\":\"[\w - | .',]*\""
+        school_r = r"\"schoolName\":\"[\w - | .',]*\""
+
+
+        h_r = re.compile(hometown_r)
+        w_r = re.compile(work_r)
+        s_r = re.compile(school_r)
+
+        hometown = h_r.findall(data)
+        work = w_r.findall(data)
+        school = s_r.findall(data)
+        hometown = hometown[-1][24:][:-1]
+        work = work[-1][15:][:-1]
+        school = school[-1][14:][:-1]
+        
+        self._extern_data["hometown"] = hometown != "string"
+        self._extern_data["work"] = work != "string"
+        self._extern_data["education"] = school != "string"
+        self._extern_data["name"] = True
+
 
     def parse(self):
+        self._driver = webdriver.Firefox()
+        self._driver.get(self._url)
         data = self.use_selenium("https://www.linkedin.com/feed/",self.__session.cookies)
         soup =  BeautifulSoup(data,"html.parser")
         self._user_id = soup.find("a",{"data-control-name":"nav.settings_view_profile"})
-        self._driver.close()
+        #self._driver.close()
         self._user_id = self._user_id["href"]
     #    print (self._user_id)
+        self.parse_extern(self._url)
+        
+
 
         for item in self._endpoints:
             html_data = self.use_selenium(item, self.__session.cookies)
@@ -1070,7 +1115,10 @@ class LinkedInLogin(LoginHandle):
                                                 value = False
             
             self._data[item[35:]] = value 
-            self._driver.close()
+        self._driver.close()
+
+
+
 class GoogleLogin(LoginHandle):
     
     def __init__(self):
@@ -1082,6 +1130,7 @@ class GoogleLogin(LoginHandle):
         self._wait = 5
         self._data["phone"] = "On"
         self._data["name"] = "On"
+        self._extern_data = None
 
     def login(self,name,passwd):
         self._driver = webdriver.Firefox()
@@ -1184,8 +1233,12 @@ class InstagramLogin(LoginHandle):
         self._redirect_delay = 5
         self._endpoint = "https://www.instagram.com/accounts/privacy_and_security/"
         self._data["name"] = "false"
+        self._extern_data = dict()
 
     def login(self,name,passwd):
+        if len(passwd) < 6:
+            raise LoginError
+
         self._driver = webdriver.Firefox()
         self._driver.get(self._url)
         
@@ -1201,15 +1254,31 @@ class InstagramLogin(LoginHandle):
 
         login_form = self._driver.find_element_by_xpath('/html/body/div[1]/section/main/article/div[2]/div[1]/div/form')
         login_form.submit()
-        time.sleep(5)
+        time.sleep(3)
+
+        self.check_successful_login(['//*[@id="slfErrorAlert"]'])
+        self._driver.get("https://www.instagram.com/accounts/edit/")
+        time.sleep(3)
+
+        self._user_id = self._driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/article/div/div[2]/h1').text
+
+    def parse_extern(self, endpoint):
+        self._driver.get(self._url+self._user_id)
+        time.sleep(3)
+        data = self._driver.page_source
+        self._extern_data["hometown"] = data.find('"description":') > 0
+        self._extern_data["name"] = True
+        print(self._extern_data)
 
     def parse(self):
         self._driver.get(self._endpoint)
         
         data = self._driver.find_element_by_xpath('/html/body/script[1]')
         self._data.update(json.loads(data.get_attribute('innerHTML')[21:][:-1])["entry_data"]["SettingsPages"][0]["form_data"])
+        
+        self.parse_extern(self._url)
         self._driver.close()
-        print(self._data)
+        
 
 class TumblrLogin(LoginHandle):
     def __init__(self):
@@ -1217,6 +1286,7 @@ class TumblrLogin(LoginHandle):
         self._url = "https://www.tumblr.com/login"
         self._endpoint = "https://www.tumblr.com/settings/privacy"
         self._redirect_delay = 5
+        self._extern_data = None
 
     def login(self,name,passwd):
         self._driver = webdriver.Firefox()
@@ -1229,7 +1299,7 @@ class TumblrLogin(LoginHandle):
         name_input.send_keys(name)
 
         self._driver.find_element_by_xpath('//*[@id="signup_forms_submit"]').click()
-
+        self.check_successful_login(['//*[@id="signup_form_errors"]/li'])
         WebDriverWait(self._driver,self._redirect_delay).until(EC.presence_of_element_located((By.XPATH,'//*[@id="signup_magiclink"]/div[2]/a')))
         time.sleep(5)
         self._driver.find_element_by_xpath('//*[@id="signup_magiclink"]/div[2]/a').click()
@@ -1240,8 +1310,9 @@ class TumblrLogin(LoginHandle):
         passwd_input.send_keys(passwd)
 
         self._driver.find_element_by_xpath('//*[@id="signup_form"]').submit()
-
         time.sleep(2)
+        self.check_successful_login(['//*[@id="signup_form_errors"]/li'])
+        
 
     def parse(self):
         self._driver.get(self._endpoint)
@@ -1256,9 +1327,8 @@ class TumblrLogin(LoginHandle):
             value = False
 
         self._data["Let others see that you're active"] = value
+        self._driver.close()
 
-        print(value)
-        
 class Presenter:
     def __init__(self,network):
         self._network = network
@@ -1303,12 +1373,29 @@ def main1(f):
     print(result)
     #writer.writerow(result)
 
+
+
+
 if __name__ == '__main__':
 
 
     name = None
+    networks = {"Facebook":None,"Twitter":None,"Google":None,"Linkedin":None,"Instagram":None,"Tumblr":None,"Pinterest":None}
+    firts = True
+
     while 1:
-        print("Supported networks: Facebook - F | Twitter - T | LinkedIn - L | Google - G | Instagram - I | Tumblr - M")
+        ready_to_add = ""
+        for key, item in networks:
+            if item is None:
+                ready_to_add = ready_to_add+" | "+key
+        if First:
+            print("Add network for evaluation"+ready_to_add)
+        else:
+            print("Type EVALUATE for skip adding new network or Add network for evaluation"+ready_to_add)
+        
+        ready_to_add = ""
+        First = False
+        
         network = input(">")
         if network == "Facebook" or network == "F" or network == "facebook":
             nt = Facebook()
@@ -1334,17 +1421,21 @@ if __name__ == '__main__':
             nt = Tumblr()
             login = TumblrLogin()
         
+        elif network == "EVALUATE":
+            pass
+        
         else:
             print ("unsupported option")
             continue
 
-       # name = input("Username:")
-       # passwd = input("Password:")
+        name = input("Username:")
+        passwd = input("Password:")
             
         print ("Logging in "+nt._name)
         try:
-            #login.login(name,passwd)
-            login.login("fitvut@seznam.cz","diplomka2019")
+            login.login(name,passwd)
+        #    login.login("fitvut@seznam.cz","diplomka2019")
+#            login.login("diplomka2020@tiscali.cz","fitvut2020")
         except (LoginError) as e:
             print("invalid credentials")
             continue
@@ -1352,19 +1443,24 @@ if __name__ == '__main__':
         except (ElementNotInteractableException, ElementClickInterceptedException) as e:
             if login._driver is not None:
                 login._driver.close()
-            #login.login(name,passwd)
-            login.login("fitvut@seznam.cz","diplomka2019")
+            login.login(name,passwd)
+            #login.login("fitvut@seznam.cz","diplomka2019")
         try:
             print("Downloading data from "+nt._name)
 
             login.parse()
-        except (AttributeError):
-            print("error: please try to login in browser")
-            exit(1)
+#        except (AttributeError):
+ #           print("error: please try to login in browser")
+  #          exit(1)
 
         except (ElementNotInteractableException, ElementClickInterceptedException) as e:
             login.parse()
-            
+
+        networks[nt._name] = (nt,login)
+        cnt = input("For adding next network type NEXT and press enter, for evaluation press only enter")
+        if cnt == "NEXT":
+            continue
+
         evaluator = Evaluator(osn=nt,data=login.get_data())
         evaluator.change_model(C_PIDX()) 
         advice = evaluator.advice()
@@ -1404,4 +1500,4 @@ if __name__ == '__main__':
 
     exit(0)
     
-
+# fitvut@tiscali.cz diplomka2019
