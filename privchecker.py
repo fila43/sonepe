@@ -1330,8 +1330,11 @@ class TumblrLogin(LoginHandle):
         self._driver.close()
 
 class Presenter:
-    def __init__(self,network):
-        self._network = network
+    def __init__(self):
+        self._networks = []
+
+    def add_network(self, network, result, advice):
+        self._networks.append({"network":network,"result":result,"advice":advice})
 
     def calculate_result(self,value):
         """
@@ -1342,10 +1345,10 @@ class Presenter:
         result = result/network._max*100
         
     def present_result(self,value):
-        print("")
-        print("Minimal reachable privacy score for "+self._network._name+" is: "+self._network._min)
-        print("Maximal privacy score for "+self._network._name+" is: "+self._network._max)
-        print("Your privacy score for "+self._network._name+" is: "+value+" | "+self.calculate_result(value)+"% of maximum")
+       # print("")
+       # print("Minimal reachable privacy score for "+self._network._name+" is: "+self._network._min)
+       # print("Maximal privacy score for "+self._network._name+" is: "+self._network._max)
+       # print("Your privacy score for "+self._network._name+" is: "+value+" | "+self.calculate_result(value)+"% of maximum")
         
     def present_in_browser(self,value,advice):
         page = webdriver.Firefox()
@@ -1385,7 +1388,7 @@ if __name__ == '__main__':
 
     while 1:
         ready_to_add = ""
-        for key, item in networks:
+        for key, item in networks.items():
             if item is None:
                 ready_to_add = ready_to_add+" | "+key
         if First:
@@ -1461,9 +1464,10 @@ if __name__ == '__main__':
         if cnt == "NEXT":
             continue
 
-        evaluator = Evaluator(osn=nt,data=login.get_data())
-        evaluator.change_model(C_PIDX()) 
-        advice = evaluator.advice()
+        for key,item in networks.items():
+            evaluator = Evaluator(osn=item[0],data=item[1].get_data())
+            evaluator.change_model(C_PIDX())
+            advice = evaluator.advice()
         try:
             adv = next(advice)
         except StopIteration:
