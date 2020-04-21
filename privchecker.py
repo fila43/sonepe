@@ -4,6 +4,7 @@ import sys
 import csv
 from math import ceil
 from lxml import html
+from getpass import getpass
 
 
 from selenium.common.exceptions import NoSuchElementException
@@ -351,11 +352,14 @@ class Facebook(OSN):
 
 
     def get_advice(self,data):
-         for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
-            if self._evaluation[data[key]] >= 1:
-                if key == "phone" or key == "photo" or key == "name":
-                    continue
-                yield key
+        d1 = collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True))
+        for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
+            print(d1[key])
+            print(data[key])
+#            if self._evaluation[data[key]] >= 1:
+ #               if key == "phone" or key == "photo" or key == "name":
+  #                  continue
+   #             yield key
 
 
 class LinkedIn(OSN):
@@ -425,6 +429,7 @@ class LinkedIn(OSN):
 
     def get_advice(self,data):
         for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
+            print(data[key])
             if self._evaluation[data[key]] >= 1:
                 yield self._advice[key]
 
@@ -542,7 +547,6 @@ class Instagram(LinkedIn):
 class Tumblr(Facebook):
     def __init__(self):
         super().__init__()
-        # TODO set correct values
         self._min = 0
         self._max = 0.075
         self._default = 0.075
@@ -554,6 +558,32 @@ class Tumblr(Facebook):
                 False:0,
                 "True":1,
                 "False":0
+                }
+
+class OSN_extern(OSN):
+    def __init__(self):
+        super().__init__()
+        self._min = 0
+        self._max = 1.469
+        self._default = 0
+        self._name = "extern"
+        self._weights = {"name":0.05, "hometown":0.65,"education":0.15,"favorites":0.15,"work":0.65}
+        self._evaluation = { True:1,False:0,"True":1,"False":0}
+
+class Pinterest(Tumblr):
+     def __init__(self):
+        super().__init__()
+        self._min = 0
+        self._max = 0.8234
+        self._default = 0.8234
+        self._name = "Pinterest"
+        self._weights = {"Hide your profile from search engines (e.g. Google)": 0.55}
+        self._evaluation = {
+                # reverted in osn settings
+                True:0,
+                False:1,
+                "True":0,
+                "False":1
                 }
 
 
@@ -636,7 +666,10 @@ class M_PIDX(PIDX):
             if key in self._weights:
                 result[key] = self._weights[key]*self._evaluation[value]
         
-        return max(result.values())
+        if bool(result): 
+            return max(result.values())
+        else:
+            return 0
 
 
 class C_PIDX(W_PIDX,M_PIDX):
@@ -770,7 +803,8 @@ class LoginHandle:
             try:
                 self._driver.find_element_by_xpath(item)
             except (ElementNotInteractableException, ElementClickInterceptedException, NoSuchElementException):
-                flag = flag+1  
+                flag = flag+1
+                print("nasel: "+item) 
             if flag < len(elements):
                 self._driver.close()
                 raise LoginError
@@ -784,8 +818,8 @@ class LoginHandle:
             flag = True
 
         driver.get(endpoint+"/"+self._user_id)
-       # time.sleep(2)
-       # driver.refresh() only for facebook
+        time.sleep(2)
+        driver.refresh()
         time.sleep(4)
         for key,value in paths.items():
             try:
@@ -797,7 +831,7 @@ class LoginHandle:
         if flag:
             driver.close()
 
-        print (self._extern_data)
+       # print (self._extern_data)
     
 
 
@@ -891,7 +925,8 @@ class FacebookLogin(LoginHandle):
         self._data.update(result)
         self.parse_extern(self._url,{"hometown":'//*[@id="pagelet_hometown"]/div/div/div/span', 
             "favorites":'//*[@id="favorites"]/div[2]/table',
-            "education":'//*[@id="pagelet_eduwork"]/div/div/div/span'})
+            "education":'//*[@id="pagelet_eduwork"]/div/div/div/span',
+            "name":'//*[@id="fb-timeline-cover-name"]/a'})
 
 class TwitterLogin(LoginHandle):
 
@@ -902,7 +937,7 @@ class TwitterLogin(LoginHandle):
         self._endpoint = "https://twitter.com/settings/account"
         self._data["name"] = "all"
         self._data["photo"] = "all"
-        self._extern_data = None
+        self._extern_data = dict()
     
 
 
@@ -1009,7 +1044,7 @@ class LinkedInLogin(LoginHandle):
 
     def check_successful_login(self, response): 
         title = BeautifulSoup(response.content,features="lxml")
-        if title.title.text == "Security Verification | LinkedIn":
+        if title.title.text == "Security Verification | LinkedIn" or title.title.text == "LinkedIn Login, LinkedIn Sign in | LinkedIn":
             raise LoginError
 
     def use_selenium(self,url,cookies):
@@ -1130,7 +1165,7 @@ class GoogleLogin(LoginHandle):
         self._wait = 5
         self._data["phone"] = "On"
         self._data["name"] = "On"
-        self._extern_data = None
+        self._extern_data = dict()
 
     def login(self,name,passwd):
         self._driver = webdriver.Firefox()
@@ -1268,7 +1303,7 @@ class InstagramLogin(LoginHandle):
         data = self._driver.page_source
         self._extern_data["hometown"] = data.find('"description":') > 0
         self._extern_data["name"] = True
-        print(self._extern_data)
+        #print(self._extern_data)
 
     def parse(self):
         self._driver.get(self._endpoint)
@@ -1286,7 +1321,7 @@ class TumblrLogin(LoginHandle):
         self._url = "https://www.tumblr.com/login"
         self._endpoint = "https://www.tumblr.com/settings/privacy"
         self._redirect_delay = 5
-        self._extern_data = None
+        self._extern_data = dict()
 
     def login(self,name,passwd):
         self._driver = webdriver.Firefox()
@@ -1329,9 +1364,62 @@ class TumblrLogin(LoginHandle):
         self._data["Let others see that you're active"] = value
         self._driver.close()
 
+class PinterestLogin(LoginHandle):
+    def __init__(self):
+        super().__init__()
+        self._url = "https://www.pinterest.com/"
+        self._endpoint = "https://cz.pinterest.com/settings/privacy/"
+        self._redirect_delay = 5
+        self._extern_data = dict()
+
+    def login(self, name, passwd):
+        self._driver = webdriver.Firefox()
+        self._driver.get(self._url)
+        
+        sign_in = self._driver.find_element_by_xpath('//*[@id="__PWS_ROOT__"]/div[1]/div[3]/div/div/div[3]/div[1]/div[1]/div[2]/div[1]/button')
+        sign_in.click()
+        
+        time.sleep(2)
+        name_input = self._driver.find_element_by_xpath('//*[@id="email"]')
+        name_input.clear()
+        name_input.send_keys(name)
+
+        time.sleep(2)
+        passwd_input = self._driver.find_element_by_xpath('//*[@id="password"]')
+        passwd_input.clear()
+        passwd_input.send_keys(passwd)
+        
+        time.sleep(1)
+        self._driver.find_element_by_xpath('//*[@id="__PWS_ROOT__"]/div[1]/div[3]/div/div/div[3]/div[1]/div/div/div[1]/div/div/div/div[3]/form').submit()
+        try:
+            WebDriverWait(self._driver, 15 ).until(EC.presence_of_element_located((By.XPATH,'//*[@id="searchBoxContainer"]/div/div/div[2]/input'))) 
+        except TimeoutException:
+            self._driver.close()
+            raise LoginError
+        time.sleep(1)
+
+
+    def parse(self):
+        self._driver.get(self._endpoint)
+        time.sleep(2)
+        data = self._driver.page_source
+        
+        soup = BeautifulSoup(data,"html.parser")
+        value = soup.find("input",{"id":"exclude_from_search","checked":True})
+
+        if value is not None:
+            value = True
+        else:
+            value = False
+
+        self._data["Hide your profile from search engines (e.g. Google)"] = value
+        self._driver.close()
+
+
 class Presenter:
     def __init__(self):
         self._networks = []
+        self._extern = 0
 
     def add_network(self, network, result, advice):
         self._networks.append({"network":network,"result":result,"advice":advice})
@@ -1349,12 +1437,56 @@ class Presenter:
        # print("Minimal reachable privacy score for "+self._network._name+" is: "+self._network._min)
        # print("Maximal privacy score for "+self._network._name+" is: "+self._network._max)
        # print("Your privacy score for "+self._network._name+" is: "+value+" | "+self.calculate_result(value)+"% of maximum")
-        
-    def present_in_browser(self,value,advice):
-        page = webdriver.Firefox()
-        page.get("http://www.stud.fit.vutbr.cz/~xjanus08/privchecker/dist/index.html?min="+str(self._network._min)+"&max="
-                +str(self._network._max)+"&default="+str(self._network._default)+"&value="+str(value)+"&name="+self._network._name.capitalize()+"&help="+advice)
+        pass
 
+    def present_in_browser(self):
+        page = webdriver.Firefox()
+        page.get("http://www.stud.fit.vutbr.cz/~xjanus08/privchecker/index.php?data="+self.send_data())
+
+    def setup_extern_result(self, value, extern_data):
+        self._extern = value
+        self._extern_data = extern_data
+
+    def result_json(self):
+        result = dict()
+        tmp = OSN_extern()
+        result["extern"] = self._extern
+        result["extern_min"] = tmp._min
+        result["extern_max"] = tmp._max
+        result["extern_data"] = []
+
+        for key,item in self._extern_data.items():
+            if item :
+                result["extern_data"].append(key.capitalize())
+
+        result["intern"] = []
+        
+        intern_item = dict()
+        for item in self._networks:
+            intern_item = dict()
+            intern_item["name"] = item["network"]._name
+            intern_item["max"] = item["network"]._max
+            intern_item["min"] = item["network"]._min
+            intern_item["default"] = item["network"]._default
+            intern_item["result"] = item["result"]
+            intern_item["advices"] = []
+
+            while(1):
+                try:
+                    intern_item["advices"].append(next(item["advice"]))
+                except StopIteration:
+                    break
+
+            result["intern"].append(intern_item)
+
+    
+        return result
+    
+    def send_data(self):
+        data = self.result_json()
+        r = requests.post('http://www.stud.fit.vutbr.cz/~xjanus08/privchecker/upload.php',json=data)
+
+        return r.text
 
 def main1(f):
     login = GoogleLogin()
@@ -1376,29 +1508,43 @@ def main1(f):
     print(result)
     #writer.writerow(result)
 
-
-
+def merge_extern_data(networks):
+    result = dict()
+    for key,item in networks.items():
+        if item is None:
+            continue
+        for k,i in item[1]._extern_data.items():
+            if i:
+                result[k] = i
+    
+    
+    return result
 
 if __name__ == '__main__':
-
-
+    #login.login("fitvut@tiscali.cz","diplomka2019")
+    #login.parse()
+    
     name = None
     networks = {"Facebook":None,"Twitter":None,"Google":None,"Linkedin":None,"Instagram":None,"Tumblr":None,"Pinterest":None}
-    firts = True
-
+    first = True
+    presenter = Presenter()
     while 1:
         ready_to_add = ""
         for key, item in networks.items():
             if item is None:
-                ready_to_add = ready_to_add+" | "+key
-        if First:
-            print("Add network for evaluation"+ready_to_add)
+                if key == "Tumblr":
+                    ready_to_add = ready_to_add+" | "+key+" - M"
+                else:
+                    ready_to_add = ready_to_add+" | "+key+" - "+key[0]
+        if first:
+            print("Add network for evaluation "+ready_to_add)
         else:
-            print("Type EVALUATE for skip adding new network or Add network for evaluation"+ready_to_add)
+            print("Add network or evaluate "+ready_to_add+" | EVALUATE - E")
         
         ready_to_add = ""
-        First = False
-        
+        first = False
+        evaluate = False
+
         network = input(">")
         if network == "Facebook" or network == "F" or network == "facebook":
             nt = Facebook()
@@ -1423,62 +1569,82 @@ if __name__ == '__main__':
         elif network == "Tumblr" or network == "M" or network == "tumblr":
             nt = Tumblr()
             login = TumblrLogin()
-        
-        elif network == "EVALUATE":
-            pass
+
+        elif network == "Pinterest" or network == "P" or network == "pinterest":
+            nt = Pinterest()
+            login = PinterestLogin()
+
+        elif network == "EVALUATE" or network == "E" or network == "evaluate":
+            evaluate = True
+            print("Evaluating...")
         
         else:
             print ("unsupported option")
             continue
-
-        name = input("Username:")
-        passwd = input("Password:")
+        
+        if not evaluate:
+            name = input("Username:")
+            passwd = getpass()
             
-        print ("Logging in "+nt._name)
-        try:
-            login.login(name,passwd)
-        #    login.login("fitvut@seznam.cz","diplomka2019")
-#            login.login("diplomka2020@tiscali.cz","fitvut2020")
-        except (LoginError) as e:
-            print("invalid credentials")
+            print ("Logging in "+nt._name)
+            try:
+               login.login(name,passwd)
+             #   login.login("fitvut@seznam.cz","diplomka2019")
+#                login.login("diplomka2020@tiscali.cz","fitvut2020")
+            except (LoginError) as e:
+                print("invalid credentials ")
+                continue
+
+            except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+                if login._driver is not None:
+                    login._driver.close()
+                login.login(name,passwd)
+                #login.login("fitvut@seznam.cz","diplomka2019")
+            try:
+                print("Downloading data from "+nt._name)
+
+                login.parse()
+#           except (AttributeError):
+ #              print("error: please try to login in browser")
+  #              exit(1)
+
+            except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+                login.parse()
+
+            networks[nt._name] = (nt,login)
             continue
+        else:
+        
+            for key,item in networks.items():
+                if item is None:
+                    continue
+                evaluator = Evaluator(osn=item[0],data=item[1].get_data())
+                evaluator.change_model(C_PIDX())
+                advice = evaluator.advice()
+                value = evaluator.apply_model()
 
-        except (ElementNotInteractableException, ElementClickInterceptedException) as e:
-            if login._driver is not None:
-                login._driver.close()
-            login.login(name,passwd)
-            #login.login("fitvut@seznam.cz","diplomka2019")
-        try:
-            print("Downloading data from "+nt._name)
-
-            login.parse()
-#        except (AttributeError):
- #           print("error: please try to login in browser")
-  #          exit(1)
-
-        except (ElementNotInteractableException, ElementClickInterceptedException) as e:
-            login.parse()
-
-        networks[nt._name] = (nt,login)
-        cnt = input("For adding next network type NEXT and press enter, for evaluation press only enter")
-        if cnt == "NEXT":
-            continue
-
-        for key,item in networks.items():
-            evaluator = Evaluator(osn=item[0],data=item[1].get_data())
+                presenter.add_network(item[0],value,advice)
+        
+            extern_data = merge_extern_data(networks)
+        #    print(extern_data)
+            evaluator = Evaluator(osn=OSN_extern(),data=extern_data)
             evaluator.change_model(C_PIDX())
-            advice = evaluator.advice()
-        try:
-            adv = next(advice)
-        except StopIteration:
-            adv = "No help"
-        flag = True
 
-        value = evaluator.apply_model()
+            presenter.setup_extern_result(evaluator.apply_model(), extern_data)
 
-        presenter = Presenter(nt)
-        presenter.present_in_browser(ceil(value*1000)/1000,adv)
-        print("Your privacy score: "+str(evaluator.apply_model()))
+            #print(presenter.send_data())
+            presenter.present_in_browser()
+            exit(1)
+            # try:
+             #    adv = next(advice)
+            #except StopIteration:
+            #   adv = "No help"
+            #flag = True
+
+
+        
+            presenter.present_in_browser(ceil(value*1000)/1000,adv)
+            print("Your privacy score: "+str(evaluator.apply_model()))
         
         while 1:
                 print("Evaluate - E | Get advice - A | Back - B | Quit - Q")
