@@ -39,6 +39,9 @@ class LoginError(Exception):
 class MissingDataError(Exception):
     pass
 
+class UnsupportedLanguage(Exception):
+    pass
+
 class Constants:
     ENGLISH = "English (UK)"
     CZECH = "Čeština"
@@ -350,16 +353,45 @@ class Facebook(OSN):
             "photo":0.55
             }
 
+        self._weights_US = {
+            "Who can see your future posts?":0.25,
+            "Who can send you friend requests?":0.15,
+            "Who can see your friends list?":0.60,
+            "Who can look you up using the email address you provided?":0.65,
+            "Who can look you up using the phone number you provided?":0.70,
+            "Do you want search engines outside of Facebook to link to your profile?":0.50,
+            "Who can post on your timeline?":0.5, #ma dopad na soukromí?
+            "Who can see what others post on your timeline?":0.5, #ma dopad na soukromí?
+            "Allow others to share your posts to their stories?":0.25,
+            "Hide comments containing certain words from your timeline":-0.15, # improve security
+            "Who can see posts you're tagged in on your timeline?":0.45,
+            "When you're tagged in a post, who do you want to add to the audience of the post if they can't already see it?":0.4, #co to znamená????
+            "Review posts you're tagged in before the post appears on your timeline?":-0.2, #improve security
+            "Review tags people add to your posts before the tags appear on Facebook?":-0.2,
+            "Allow others to share your public stories to their own story?":0.6,
+            "Allow people to share your stories if you mention them?":0.5,
+            "Turn on Location History for your mobile devices?":0.8,
+            "Do you want Facebook to be able to recognize you in photos and videos?":0.8,
+            "name":0.05,
+            "photo":0.55
+            }
 
-    def get_advice(self,data):
-        d1 = collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True))
-        for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
-            print(d1[key])
-            print(data[key])
-#            if self._evaluation[data[key]] >= 1:
- #               if key == "phone" or key == "photo" or key == "name":
-  #                  continue
-   #             yield key
+
+    def set_US(self):
+        self._weights = self._weights_US
+
+    def get_advice(self,data, us = False):
+        try:
+            for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
+                if self._evaluation[data[key]] >= 1:
+                    if key == "phone" or key == "photo" or key == "name":
+                        continue
+                    yield key
+        except KeyError:
+            if us:
+                raise UnsupportedLanguage
+            self._weights = self._weights_US
+            self.get_advice(data,True)
 
 
 class LinkedIn(OSN):
@@ -429,7 +461,6 @@ class LinkedIn(OSN):
 
     def get_advice(self,data):
         for key,value in collections.OrderedDict(sorted(self._weights.items(), key=lambda x: x[1], reverse=True)).items():
-            print(data[key])
             if self._evaluation[data[key]] >= 1:
                 yield self._advice[key]
 
@@ -804,7 +835,6 @@ class LoginHandle:
                 self._driver.find_element_by_xpath(item)
             except (ElementNotInteractableException, ElementClickInterceptedException, NoSuchElementException):
                 flag = flag+1
-                print("nasel: "+item) 
             if flag < len(elements):
                 self._driver.close()
                 raise LoginError
@@ -866,6 +896,13 @@ class FacebookLogin(LoginHandle):
     def get_language(self):
         return self._language
 
+    def test_US(self):
+        try:
+            self._data["Do you want Facebook to be able to recognise you in photos and videos?"]
+            return False
+        except KeyError:
+            return True
+
     def login(self,name,passwd):
         super().login(name,passwd)
         self.__session.get('https://m.facebook.com')
@@ -923,10 +960,10 @@ class FacebookLogin(LoginHandle):
         # remove unusable settings with None value
         result = dict(filter(lambda a:a[1] is not None , result.items()))
         self._data.update(result)
-        self.parse_extern(self._url,{"hometown":'//*[@id="pagelet_hometown"]/div/div/div/span', 
-            "favorites":'//*[@id="favorites"]/div[2]/table',
-            "education":'//*[@id="pagelet_eduwork"]/div/div/div/span',
-            "name":'//*[@id="fb-timeline-cover-name"]/a'})
+       # self.parse_extern(self._url,{"hometown":'//*[@id="pagelet_hometown"]/div/div/div/span', 
+        #    "favorites":'//*[@id="favorites"]/div[2]/table',
+         #   "education":'//*[@id="pagelet_eduwork"]/div/div/div/span',
+         #   "name":'//*[@id="fb-timeline-cover-name"]/a'})
 
 class TwitterLogin(LoginHandle):
 
@@ -1230,27 +1267,26 @@ class GoogleLogin(LoginHandle):
                 print("timeout")
         # navigate to settings
         self._driver.get("https://myaccount.google.com/u/0/data-and-personalization")
-
+        time.sleep(2)
         # extract settings
-        settings = {'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[2]/div/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[2]/div/a/div/div[2]/div/div[2]/div/div[2]', #activity on web and applications
-                '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]', #location history
-                '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[2]/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]'
+        settings = {'/html/body/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[2]/div/a/div/div[2]/div/div[1]/div/h3':'/html/body/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[2]/div/a/div/div[2]/div/div[2]/div/div[2]', #activity on web and applications
+                '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]', #location history
+                '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]' #YT
                 }
-        self._language = self._driver.find_element_by_xpath('//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[8]/div/div/div[2]/div/a/div/div[2]/div/div[2]/div/div').text
-        self._language = self._language.split()[0]
+        #self._language = self._driver.find_element_by_xpath('//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[8]/div/div/div[2]/div/a/div/div[2]/div/div[2]/div/div').text
+       # self._language = self._language.split()[0]
         for key, value in settings.items():
             self._data[self._driver.find_element_by_xpath(key).text] =self._driver.find_element_by_xpath(value).text 
             #print(self._driver.find_element_by_xpath(key).text+":"+self._driver.find_element_by_xpath(value).text)
         
-        settings = {'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts saved from communication
-                    '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[1]/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts from your device
-                    '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[4]/div/div/div[2]/div/div/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[4]/div/div/div[2]/div/div/div/div[2]/div/div[2]/div/div[2]' #connect your profile with ads
+        settings = {'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts saved from communication
+                    '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts from your device
+                    '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[4]/article/div/div/div[2]/div/div/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[4]/article/div/div/div[2]/div/div/div/div[2]/div/div[2]/div/div[2]' #connect your profile with ads
                     }
-
            
 
         self._driver.get("https://myaccount.google.com/u/0/people-and-sharing")
-
+        time.sleep(2)
         for key, value in settings.items():
             self._data[self._driver.find_element_by_xpath(key).text] =self._driver.find_element_by_xpath(value).text 
             #print(self._driver.find_element_by_xpath(key).text+":"+self._driver.find_element_by_xpath(value).text)
@@ -1473,7 +1509,11 @@ class Presenter:
 
             while(1):
                 try:
-                    intern_item["advices"].append(next(item["advice"]))
+                    tmp = next(item["advice"])
+                    if tmp == "next":
+                        continue
+                    else:
+                        intern_item["advices"].append(tmp)
                 except StopIteration:
                     break
 
@@ -1523,7 +1563,7 @@ def merge_extern_data(networks):
 if __name__ == '__main__':
     #login.login("fitvut@tiscali.cz","diplomka2019")
     #login.parse()
-    
+    print("\n\n Before using please switch your Social network account to English\n\n") 
     name = None
     networks = {"Facebook":None,"Twitter":None,"Google":None,"Linkedin":None,"Instagram":None,"Tumblr":None,"Pinterest":None}
     first = True
@@ -1588,31 +1628,40 @@ if __name__ == '__main__':
             
             print ("Logging in "+nt._name)
             try:
-               login.login(name,passwd)
-             #   login.login("fitvut@seznam.cz","diplomka2019")
+                try:
+                    login.login(name,passwd)
+            #   login.login("fitvut@seznam.cz","diplomka2019")
 #                login.login("diplomka2020@tiscali.cz","fitvut2020")
-            except (LoginError) as e:
-                print("invalid credentials ")
-                continue
+                except (LoginError) as e:
+                    print("invalid credentials ")
+                    continue
 
-            except (ElementNotInteractableException, ElementClickInterceptedException) as e:
-                if login._driver is not None:
-                    login._driver.close()
-                login.login(name,passwd)
+                except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+                    if login._driver is not None:
+                        login._driver.close()
+                    login.login(name,passwd)
                 #login.login("fitvut@seznam.cz","diplomka2019")
-            try:
-                print("Downloading data from "+nt._name)
+                try:
+                    print("Downloading data from "+nt._name)
 
-                login.parse()
+                    login.parse()
 #           except (AttributeError):
  #              print("error: please try to login in browser")
   #              exit(1)
 
-            except (ElementNotInteractableException, ElementClickInterceptedException) as e:
-                login.parse()
+                except (ElementNotInteractableException, ElementClickInterceptedException) as e:
+                    login.parse()
 
-            networks[nt._name] = (nt,login)
-            continue
+            
+                if nt._name == "Facebook":
+                    if login.test_US():
+                        nt.set_US()
+
+                networks[nt._name] = (nt,login)
+                continue
+            except:
+                print("Something is went wrong, try it again")
+                continue
         else:
         
             for key,item in networks.items():
