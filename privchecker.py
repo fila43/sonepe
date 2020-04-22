@@ -1660,7 +1660,7 @@ if __name__ == '__main__':
                 networks[nt._name] = (nt,login)
                 continue
             except:
-                print("Something is went wrong, try it again")
+                print("Something went wrong, try it again")
                 continue
         else:
         
