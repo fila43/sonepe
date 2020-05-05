@@ -7,6 +7,6 @@ git clone git@github.com:fila43/Master-thesis.git
 otherwise
 ```
 git clone git@github.com:fila43/Master-thesis.git
-dist/privchecker/privcecker
+dist/privchecker/privchecker
 ```
 
