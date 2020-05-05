@@ -5,8 +5,8 @@ import csv
 from math import ceil
 from lxml import html
 from getpass import getpass
-
-
+from sys import exit
+import traceback
 from selenium.common.exceptions import NoSuchElementException
 import requests
 from bs4 import BeautifulSoup
@@ -484,7 +484,7 @@ class LinkedIn(OSN):
 class Twitter(LinkedIn):
     def __init__(self):
         super().__init__()
-        self._name = "Twiitter"
+        self._name = "Twitter"
         self._min = 1.88
         self._max = 2.38
         self._default = 2.09
@@ -960,10 +960,10 @@ class FacebookLogin(LoginHandle):
         # remove unusable settings with None value
         result = dict(filter(lambda a:a[1] is not None , result.items()))
         self._data.update(result)
-       # self.parse_extern(self._url,{"hometown":'//*[@id="pagelet_hometown"]/div/div/div/span', 
-        #    "favorites":'//*[@id="favorites"]/div[2]/table',
-         #   "education":'//*[@id="pagelet_eduwork"]/div/div/div/span',
-         #   "name":'//*[@id="fb-timeline-cover-name"]/a'})
+        self.parse_extern(self._url,{"hometown":'//*[@id="pagelet_hometown"]/div/div/div/span', 
+            "favorites":'//*[@id="favorites"]/div[2]/table',
+            "education":'//*[@id="pagelet_eduwork"]/div/div/div/span',
+            "name":'//*[@id="fb-timeline-cover-name"]/a'})
 
 class TwitterLogin(LoginHandle):
 
@@ -987,6 +987,7 @@ class TwitterLogin(LoginHandle):
             print ("Loading took too much time!")
             #TODO try load again? or exit? increase delay value? 
         try:
+            time.sleep(2)
             name_input = self._driver.find_element_by_name("session[username_or_email]")
             name_input.clear()
             name_input.send_keys(name)
@@ -1015,7 +1016,7 @@ class TwitterLogin(LoginHandle):
 
         self.get_page(self._endpoint)
         data = self._driver.page_source
-        regex = r"\"remote\":{\"settings\":.*\"fetchStatus\":\"loaded\"}"
+        regex = r"\"remote\":{\"settings\":.*\"fetchStatus\":\"load[a-z]*\"}"
         c_regex = re.compile(regex)
         data = c_regex.findall( data)
         self._data.update( json.loads(data[0][9:])["settings"])
@@ -1024,7 +1025,6 @@ class TwitterLogin(LoginHandle):
         self.parse_extern(self._url,{"hometown":'//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div/div/div/div[1]/div[2]/div[4]/div/span[1]/span/span', 
             "favorites":'//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div/div/div/div[1]/div[2]/div[3]/div/div/span',
             "education":'//*[@id="pagelet_eduwork"]/div/div/div/span'})
-
 
 
 class LinkedInLogin(LoginHandle):
@@ -1125,10 +1125,14 @@ class LinkedInLogin(LoginHandle):
         self._driver = webdriver.Firefox()
         self._driver.get(self._url)
         data = self.use_selenium("https://www.linkedin.com/feed/",self.__session.cookies)
-        soup =  BeautifulSoup(data,"html.parser")
-        self._user_id = soup.find("a",{"data-control-name":"nav.settings_view_profile"})
         #self._driver.close()
-        self._user_id = self._user_id["href"]
+
+        regex_id = r",\"publicIdentifier\":\"[A-Za-z-0-9]*\""
+        id_r = re.compile(regex_id)
+        self._user_id = id_r.findall(data)
+        self._user_id = "/in/"+self._user_id[0][21:-1]
+
+        
     #    print (self._user_id)
         self.parse_extern(self._url)
         
@@ -1188,7 +1192,6 @@ class LinkedInLogin(LoginHandle):
             
             self._data[item[35:]] = value 
         self._driver.close()
-
 
 
 class GoogleLogin(LoginHandle):
@@ -1660,6 +1663,7 @@ if __name__ == '__main__':
                 networks[nt._name] = (nt,login)
                 continue
             except:
+                traceback.print_exc()
                 print("Something went wrong, try it again")
                 continue
         else:
