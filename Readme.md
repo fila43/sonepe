@@ -15,9 +15,9 @@ ssh diplomka@147.229.93.47
 heslo: diplomka
 ```
 ## Work with application
-# Select testing network
-# Insert credentials
-# Select next network or type E and press Enter for evaluating
-# Show result in browser
+- Select testing network
+- Insert credentials
+- Select next network or type E and press Enter for evaluating
+- Show result in browser
 
 
