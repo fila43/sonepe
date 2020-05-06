@@ -11,7 +11,7 @@ dist/privchecker/privchecker
 ```
 ## Run via ssh
 ```
-ssh diplomka@147.229.93.47
+ssh diplomka@147.229.93.39
 heslo: diplomka
 ```
 # Work with application
