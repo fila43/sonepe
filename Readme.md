@@ -14,7 +14,8 @@ dist/privchecker/privchecker
 ssh diplomka@147.229.93.47
 heslo: diplomka
 ```
-## Work with application
+# Work with application
+## First change language in Your account to English
 - Select testing network
 - Insert credentials
 - Select next network or type E and press Enter for evaluating
