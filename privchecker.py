@@ -861,8 +861,6 @@ class LoginHandle:
         if flag:
             driver.close()
 
-       # print (self._extern_data)
-    
 
 
 class FacebookLogin(LoginHandle):
@@ -919,8 +917,6 @@ class FacebookLogin(LoginHandle):
     def parse(self):
         data = self.__session.get("https://www.facebook.com")
         soup  = BeautifulSoup(data.text,'html.parser')
-        # TODO user id cant find
-        #print(data)
         data = soup.findAll("a",class_="_2s25 _606w")
         self._user_id = data[0]["href"][25:]
 
@@ -930,7 +926,6 @@ class FacebookLogin(LoginHandle):
         soup = BeautifulSoup(data, 'html.parser')
         settings = soup.findAll("a", class_="fbSettingsListLink clearfix pvm phs")
 
-        #print(item.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nll").string, end=" : ")
 
         # language is first item
         self._language = settings[0].find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nlm fwb").string
@@ -939,7 +934,6 @@ class FacebookLogin(LoginHandle):
         for item in self.__endpoints:
             data = self.__session.get(item).text
             soup = BeautifulSoup(data, 'html.parser')
-      #      result[soup.find("span", class_="_c24")] = None
             settings = soup.findAll("a", class_="fbSettingsListLink clearfix pvm phs")
             for x in settings:
                 #sometimes is shown help and change structure
@@ -949,12 +943,6 @@ class FacebookLogin(LoginHandle):
                     index = x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nll").string
 
                 result[index] = x.find("span", class_="fbSettingsListItemContent fcg").find("div", class_="_nlm fwb").string
-
-        # page with location has different structure then others
-        #data = self.__session.get(self._location_endpoint).text
-        #soup = BeautifulSoup(data,'html.parser')
-        #setting = soup.find("div", class_="_4-u3 _2ph-").find("span", class_="_c24").string
-        #result[setting] = True
 
 
         # remove unusable settings with None value
@@ -979,13 +967,12 @@ class TwitterLogin(LoginHandle):
 
 
     def login(self,name,passwd):
-        self._driver = webdriver.Firefox() #TODO need to be setup gecko
+        self._driver = webdriver.Firefox()
         self._driver.get(self._url)
         try:
             myElem = WebDriverWait(self._driver, self._redirect_delay).until(EC.presence_of_element_located((By.NAME, 'session[username_or_email]')))
         except TimeoutException:
             print ("Loading took too much time!")
-            #TODO try load again? or exit? increase delay value? 
         try:
             time.sleep(2)
             name_input = self._driver.find_element_by_name("session[username_or_email]")
@@ -1009,7 +996,7 @@ class TwitterLogin(LoginHandle):
 
         
     def get_page(self,url):
-       time.sleep(self._redirect_delay) #TODO test if it enough.... and try again? 
+       time.sleep(self._redirect_delay) 
        return self._driver.get(url)
 
     def parse(self):
@@ -1049,7 +1036,6 @@ class LinkedInLogin(LoginHandle):
             "https://www.linkedin.com/psettings/mentions",
             "https://www.linkedin.com/psettings/visibility/email",
             "https://www.linkedin.com/psettings/visibility/phone",
-           # "https://www.linkedin.com/psettings/ingested-data-profile-match" impact??
         ]
          # this attributes cant be modified, need to be add manualy    
         self._data["name"] = "EVERYONE"
@@ -1085,7 +1071,6 @@ class LinkedInLogin(LoginHandle):
             raise LoginError
 
     def use_selenium(self,url,cookies):
-        #self._driver = webdriver.Firefox()
         for c in cookies :
             self._driver.add_cookie({'name': c.name, 'value': c.value, 'path': c.path, 'expiry': c.expires})
         time.sleep(2)
@@ -1097,7 +1082,6 @@ class LinkedInLogin(LoginHandle):
         self._driver.get(endpoint+"/"+self._user_id)
         data = self._driver.page_source
 
-        #print(data)
 
         hometown_r  = r"\"defaultLocalizedName\":\"[\w - | .',]*\""
         work_r  = r"\"companyName\":\"[\w - | .',]*\""
@@ -1125,7 +1109,6 @@ class LinkedInLogin(LoginHandle):
         self._driver = webdriver.Firefox()
         self._driver.get(self._url)
         data = self.use_selenium("https://www.linkedin.com/feed/",self.__session.cookies)
-        #self._driver.close()
 
         regex_id = r",\"publicIdentifier\":\"[A-Za-z-0-9]*\""
         id_r = re.compile(regex_id)
@@ -1133,7 +1116,6 @@ class LinkedInLogin(LoginHandle):
         self._user_id = "/in/"+self._user_id[0][21:-1]
 
         
-    #    print (self._user_id)
         self.parse_extern(self._url)
         
 
@@ -1153,7 +1135,7 @@ class LinkedInLogin(LoginHandle):
                     else:
                         value = False
 
-                else:  #  soup = BeautifulSoup(html_data, "html.parser")
+                else:
                     value = soup.find("input",{"class":"show-full-last-name-radio","checked":True})
                     if value is not None:
                         value = value.get("value")
@@ -1276,11 +1258,8 @@ class GoogleLogin(LoginHandle):
                 '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]', #location history
                 '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]' #YT
                 }
-        #self._language = self._driver.find_element_by_xpath('//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/article[8]/div/div/div[2]/div/a/div/div[2]/div/div[2]/div/div').text
-       # self._language = self._language.split()[0]
         for key, value in settings.items():
             self._data[self._driver.find_element_by_xpath(key).text] =self._driver.find_element_by_xpath(value).text 
-            #print(self._driver.find_element_by_xpath(key).text+":"+self._driver.find_element_by_xpath(value).text)
         
         settings = {'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[3]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts saved from communication
                     '//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[1]/div/h3':'//*[@id="yDmH0d"]/c-wiz/div/div[2]/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[1]/article/div/div/div[4]/div[2]/a/div/div[2]/div/div[2]/div/div[2]',#contacts from your device
@@ -1292,9 +1271,7 @@ class GoogleLogin(LoginHandle):
         time.sleep(2)
         for key, value in settings.items():
             self._data[self._driver.find_element_by_xpath(key).text] =self._driver.find_element_by_xpath(value).text 
-            #print(self._driver.find_element_by_xpath(key).text+":"+self._driver.find_element_by_xpath(value).text)
         if not Constants.is_english(self._language):
-            # TODO check if update is ok !!!!!
             self._data.update(Constants.cz_to_en_dict_translate(self._data))
 
         self._driver.close()
@@ -1342,7 +1319,6 @@ class InstagramLogin(LoginHandle):
         data = self._driver.page_source
         self._extern_data["hometown"] = data.find('"description":') > 0
         self._extern_data["name"] = True
-        #print(self._extern_data)
 
     def parse(self):
         self._driver.get(self._endpoint)
@@ -1531,25 +1507,6 @@ class Presenter:
 
         return r.text
 
-def main1(f):
-    login = GoogleLogin()
-    login.load_data(f)
-
-    nt = OSN()
-    nt.import_settings_yaml("google.yaml")
-    evaluator = Evaluator(osn=nt,data=login.get_data())
-    #evaluator.change_model(Weight_visibility_model())
-    # result = {}
-    result["W&V"]=evaluator.apply_model()
-    #evaluator.change_model(M_PIDX())
-    #result["M_PIDX"]=evaluator.apply_model()
-    #evaluator.change_model(W_PIDX())
-    #result["W_PIDX"]=evaluator.apply_model()
-    evaluator.change_model(C_PIDX())
-    result=evaluator.apply_model()
-
-    print(result)
-    #writer.writerow(result)
 
 def merge_extern_data(networks):
     result = dict()
@@ -1564,8 +1521,6 @@ def merge_extern_data(networks):
     return result
 
 if __name__ == '__main__':
-    #login.login("fitvut@tiscali.cz","diplomka2019")
-    #login.parse()
     print("\n\n Before using please switch your Social network account to English\n\n") 
     name = None
     networks = {"Facebook":None,"Twitter":None,"Google":None,"Linkedin":None,"Instagram":None,"Tumblr":None,"Pinterest":None}
@@ -1633,8 +1588,6 @@ if __name__ == '__main__':
             try:
                 try:
                     login.login(name,passwd)
-            #   login.login("fitvut@seznam.cz","diplomka2019")
-#                login.login("diplomka2020@tiscali.cz","fitvut2020")
                 except (LoginError) as e:
                     print("invalid credentials ")
                     continue
@@ -1643,14 +1596,10 @@ if __name__ == '__main__':
                     if login._driver is not None:
                         login._driver.close()
                     login.login(name,passwd)
-                #login.login("fitvut@seznam.cz","diplomka2019")
                 try:
                     print("Downloading data from "+nt._name)
 
                     login.parse()
-#           except (AttributeError):
- #              print("error: please try to login in browser")
-  #              exit(1)
 
                 except (ElementNotInteractableException, ElementClickInterceptedException) as e:
                     login.parse()
@@ -1679,48 +1628,13 @@ if __name__ == '__main__':
                 presenter.add_network(item[0],value,advice)
         
             extern_data = merge_extern_data(networks)
-        #    print(extern_data)
             evaluator = Evaluator(osn=OSN_extern(),data=extern_data)
             evaluator.change_model(C_PIDX())
 
             presenter.setup_extern_result(evaluator.apply_model(), extern_data)
 
-            #print(presenter.send_data())
             presenter.present_in_browser()
-            exit(1)
-            # try:
-             #    adv = next(advice)
-            #except StopIteration:
-            #   adv = "No help"
-            #flag = True
-
-
-        
-            presenter.present_in_browser(ceil(value*1000)/1000,adv)
-            print("Your privacy score: "+str(evaluator.apply_model()))
-        
-        while 1:
-                print("Evaluate - E | Get advice - A | Back - B | Quit - Q")
-
-                action = input(">")
-                if action == "Evaluate" or action == "E":
-                    print("Your privacy score: "+str(value))
-                elif action == "Advise" or action == "A":
-                    try:
-                        if not flag:
-                            adv = next(advice)
-                    
-                        if adv == "next":
-                            adv = next(advice)
-                        flag = False
-                        print("Try to change: " +adv)
-                    except StopIteration as e:
-                        print("No more help")
-                elif action == "Back" or action == "B":
-                    break
-                elif action == "Quit" or action == "Q":
-                    exit(0)
-
+            exit(0)
     exit(0)
     
 # fitvut@tiscali.cz diplomka2019
