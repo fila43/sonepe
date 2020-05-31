@@ -1,8 +1,20 @@
+#Privchecker
+Privchecker is tool for measuring privacy leakage in Online social networks
+## Supported networks
+- Facebook
+- Twitter
+- Instagram 
+- Youtube
+- Tumblr
+- Pinterest
+- LinkedIn
+
 ## How to download and run
 if selenium is already installed
 ```
 git clone git@github.com:fila43/Master-thesis.git
 download geckodriver from https://github.com/mozilla/geckodriver/releases
+export PATH=$PATH:/path/to/geckodriver
 ./privchecke.py
 ```
 otherwise
