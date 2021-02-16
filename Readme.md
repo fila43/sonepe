@@ -1,5 +1,5 @@
-#Privchecker
-Privchecker is tool for measuring privacy leakage in Online social networks
+#Sonepe
+Sonepe is tool for measuring privacy leakage in Online social networks
 ## Supported networks
 - Facebook
 - Twitter
@@ -12,15 +12,10 @@ Privchecker is tool for measuring privacy leakage in Online social networks
 ## How to download and run
 if selenium is already installed
 ```
-git clone git@github.com:fila43/Master-thesis.git
+git clone git@github.com:fila43/sonepe.git
 download geckodriver from https://github.com/mozilla/geckodriver/releases
 export PATH=$PATH:/path/to/geckodriver
-./privchecke.py
-```
-otherwise
-```
-git clone git@github.com:fila43/Master-thesis.git
-dist/privchecker/privchecker
+./sonepe.py
 ```
 # Work with application
 ## First change language in Your account to English
